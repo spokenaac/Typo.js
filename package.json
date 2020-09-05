@@ -1,0 +1,34 @@
+{
+  "name": "type-js-ts",
+  "version": "0.1.0",
+  "description": "Typo.js is a JavaScript spellchecker that uses Hunspell-style dictionaries.",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Amourspirit/Typo.js.git"
+  },
+  "author": "Paul Moss",
+  "contributors": [{
+    "name": "Christopher Finke <cfinke@gmail.com> (http://www.chrisfinke.com/)"
+    }
+  ],
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/Amourspirit/Typo.js/issues"
+  },
+  "homepage": "https://github.com/Amourspirit/Typo.js#readme",
+  "keywords": [
+    "spellcheck",
+    "spellchecker",
+    "hunspell",
+    "typo",
+    "speling"
+  ]
+}
