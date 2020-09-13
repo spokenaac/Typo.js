@@ -1,44 +1,92 @@
 function run() {
-	var utilityDict = new Typo();
-	var affData = utilityDict._readFile(chrome.extension.getURL("../typo/dictionaries/en_US/en_US.aff"));
-	var wordData = utilityDict._readFile(chrome.extension.getURL("../typo/dictionaries/en_US/en_US.dic"));
-	
-	var hashDict = new Typo("en_US", affData, wordData);
-	
-	testDictionary(hashDict);
+	let promiseAffData = fetchAndDecode(geturl(DIC_DIR + "/en_US/en_US.aff"), 'text');
+	let promiseWordData = fetchAndDecode(geturl(DIC_DIR + "/en_US/en_US.dic"), 'text');
+	var affData = '';
+	var wordData = '';
+	Promise.all([promiseAffData, promiseWordData]).then(values => {
+		affData = values[0];
+		wordData = values[1];
+		var hashDict = new Typo("en_US", affData, wordData);
 
-	var dict = new Typo("en_US", null, null, { dictionaryPath : "../typo/dictionaries", asyncLoad : true, loadedCallback : function () {
-		testDictionary(dict);
-	}});
+		testDictionary(hashDict);
+
+		var dict = new Typo("en_US", null, null, {
+			dictionaryPath: DIC_DIR, asyncLoad: true, loadedCallback: function () {
+				testDictionary(dict);
+			}
+		});
+	});
 }
 
 function testDictionary(dict) {
 	test("Dictionary object attributes are properly set", function () {
 		equal(dict.dictionary, "en_US");
 	});
-	
+
 	test("Suggestions", function () {
-		deepEqual(dict.suggest("speling", 3), [ "spelling", "spieling", "spewing" ]);
+		deepEqual(dict.suggest("speling", 3), [
+			"spelling",
+			"spieling",
+			"spewing"
+		]);
 
 		// Repeated calls function properly.
-		deepEqual(dict.suggest("speling", 1), [ "spelling" ]);
-		deepEqual(dict.suggest("speling"), [ "spelling", "spieling", "spewing", "selling", "peeling" ]);
-		deepEqual(dict.suggest("speling", 2), [ "spelling", "spieling" ]);
-		deepEqual(dict.suggest("speling"), [ "spelling", "spieling", "spewing", "selling", "peeling" ]);
+		deepEqual(dict.suggest("speling", 1), ["spelling"]);
+		deepEqual(dict.suggest("speling"), [
+				"spelling",
+				"spieling",
+				"spewing",
+				"peeling",
+				"selling"
+			]);
+		deepEqual(dict.suggest("speling", 2), ["spelling", "spieling"]);
+		deepEqual(dict.suggest("speling"), [
+				"spelling",
+				"spieling",
+				"spewing",
+				"peeling",
+				"selling"
+			]);
 
 		// Requesting more suggestions than will be returned doesn't break anything.
-		deepEqual(dict.suggest("spartang", 50), [ "spartan", "sparing", "starting", "sprang", "sporting", "spurting", "smarting", "sparking", "sparling", "sparring", "parting", "spatting" ]);
-		deepEqual(dict.suggest("spartang", 30), [ "spartan", "sparing", "starting", "sprang", "sporting", "spurting", "smarting", "sparking", "sparling", "sparring", "parting", "spatting" ]);
-		deepEqual(dict.suggest("spartang", 1), [ "spartan" ]);
+		deepEqual(dict.suggest("spartang", 50), [
+			"spartan",
+			"sparing",
+			"parting",
+			"smarting",
+			"sparking",
+			"sparling",
+			"sparring",
+			"spatting",
+			"sporting",
+			"sprang",
+			"spurting",
+			"starting"
+		]);
+		deepEqual(dict.suggest("spartang", 30), [
+				"spartan",
+				"sparing",
+				"parting",
+				"smarting",
+				"sparking",
+				"sparling",
+				"sparring",
+				"spatting",
+				"sporting",
+				"sprang",
+				"spurting",
+				"starting"
+			]);
+		deepEqual(dict.suggest("spartang", 1), ["spartan"]);
 
-		deepEqual(dict.suggest("spitting"), [ ], "Correctly spelled words receive no suggestions.");
-		deepEqual(dict.suggest("spitting"), [ ], "Correctly spelled words receive no suggestions.");
+		deepEqual(dict.suggest("spitting"), [], "Correctly spelled words receive no suggestions.");
+		deepEqual(dict.suggest("spitting"), [], "Correctly spelled words receive no suggestions.");
 
 		// Words that are object properties don't break anything.
-		deepEqual(dict.suggest("length"), [ ], "Correctly spelled words receive no suggestions.");
-		deepEqual(dict.suggest("length"), [ ], "Correctly spelled words receive no suggestions.");
+		deepEqual(dict.suggest("length"), [], "Correctly spelled words receive no suggestions.");
+		deepEqual(dict.suggest("length"), [], "Correctly spelled words receive no suggestions.");
 	});
-	
+
 	test("Correct checking of words with no affixes", function () {
 		equal(dict.check("I"), true);
 		equal(dict.check("is"), true);
@@ -50,7 +98,7 @@ function testDictionary(dict) {
 		equal(dict.check("palmate"), true);
 		equal(dict.check("palpable"), true);
 	});
-	
+
 	test("Correct checking of root words with single affixes (affixes not used)", function () {
 		equal(dict.check("paling"), true);
 		equal(dict.check("arrangeable"), true);
@@ -64,7 +112,7 @@ function testDictionary(dict) {
 		equal(dict.check("hypersensitiveness"), true);
 		equal(dict.check("illusive"), true);
 	});
-	
+
 	test("Capitalization is respected.", function () {
 		equal(dict.check("A"), true);
 		equal(dict.check("a"), true);
@@ -92,7 +140,7 @@ function testDictionary(dict) {
 		equal(dict.check("Alex"), true);
 		equal(dict.check("alex"), false);
 	});
-	
+
 	test("Words not in the dictionary in any form are marked as misspelled.", function () {
 		equal(dict.check("aaraara"), false);
 		equal(dict.check("aaraara"), false);
@@ -100,7 +148,7 @@ function testDictionary(dict) {
 		equal(dict.check("aaraara"), false);
 		equal(dict.check("aaraara"), false);
 	});
-	
+
 	test("Leading and trailing whitespace is ignored.", function () {
 		equal(dict.check("concept "), true);
 		equal(dict.check(" concept"), true);
@@ -108,13 +156,13 @@ function testDictionary(dict) {
 		equal(dict.check("concept  "), true);
 		equal(dict.check("  concept  "), true);
 	});
-	
+
 	test("ONLYINCOMPOUND flag is respected", function () {
 		equal(dict.check("1th"), false);
 		equal(dict.check("2th"), false);
 		equal(dict.check("3th"), false);
 	});
-	
+
 	test("Compound words", function () {
 		equal(dict.check("1st"), true);
 		equal(dict.check("2nd"), true);
@@ -135,21 +183,21 @@ function testDictionary(dict) {
 		equal(dict.check("4rd"), false);
 		equal(dict.check("100st"), false);
 	});
-	
+
 	test("Possessives are properly checked.", function () {
 		equal(dict.check("concept's"), true);
 		// acceptability's is in the dictionary including the 's
 		equal(dict.check("acceptability's's"), false);
 	});
-	
+
 	test("Replacement rules are implemented", function () {
-		deepEqual(dict.suggest("wagh"), [ "weigh" ]);
-		deepEqual(dict.suggest("ceit"), [ "cat" ]);
-		deepEqual(dict.suggest("seau"), [ "so" ]);
-		deepEqual(dict.suggest("shaccable"), [ "shakable" ]);
-		deepEqual(dict.suggest("soker"), [ "choker" ]);
+		deepEqual(dict.suggest("wagh"), ["weigh"]);
+		deepEqual(dict.suggest("ceit"), ["cat"]);
+		deepEqual(dict.suggest("seau"), ["so"]);
+		deepEqual(dict.suggest("shaccable"), ["shakable"]);
+		deepEqual(dict.suggest("soker"), ["choker"]);
 	});
-	
+
 	test("Contractions", function () {
 		equal(dict.check("aren't"), true);
 		equal(dict.check("I'm"), true);
@@ -158,19 +206,25 @@ function testDictionary(dict) {
 		equal(dict.check("didn'ts"), false);
 		equal(dict.check("he're"), false);
 	});
-	
+
 	test("Capitalizations are handled properly.", function () {
 		deepEqual(dict.suggest("Wagh"), ["Weigh"]);
-		deepEqual(dict.suggest("CEIT"), [ "CERT", "CHIT", "CIT", "CENT", "CUT" ]);
+		deepEqual(dict.suggest("CEIT"), [
+				"CENT",
+				"CERT",
+				"CHIT",
+				"CIT",
+				"BIT"
+			]);
 	});
 
 	test("NOSUGGEST is respected", function () {
 		// 'fart' is marked NOSUGGEST, and I've confirmed that it would be in the suggestions if we don't respect that flag.
 		equal(dict.suggest("faxt").indexOf('fart'), -1);
-		
+
 		// If a NOSUGGEST word would be in the top 10 ('fart' is #5), Typo should still return the expected number of results.
 		equal(dict.suggest("faxt", 10).length, 10);
 	});
 }
 
-addEventListener( "load", run, false );
+addEventListener("load", run, false);

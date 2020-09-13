@@ -1,0 +1,9 @@
+{
+  "port": 10005,
+  "files": [
+    "./scratch/orig_tests/**/*.{html,htm,css,js,json}"
+  ],
+  "server": {
+    "baseDir": "./scratch/orig_tests"
+  }
+}

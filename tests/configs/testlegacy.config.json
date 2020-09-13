@@ -1,0 +1,9 @@
+{
+  "port": 10010,
+  "files": [
+    "./scratch/legacy_tests/**/*.{html,htm,css,js,json}"
+  ],
+  "server": {
+    "baseDir": "./scratch/legacy_tests"
+  }
+}

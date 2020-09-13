@@ -2,7 +2,7 @@
   "compilerOptions": {
     /* Basic Options */
     // "baseUrl": ".",
-    "target": "es5",
+    "target": "ESNEXT",
     "module": "ESNEXT",
     "lib": [
       "dom",

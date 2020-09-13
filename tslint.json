@@ -1,0 +1,15 @@
+{
+  "extends": ["@ephox/tslint-rules/tslint.json", "tslint-config-prettier"],
+  "rules": {
+    "only-arrow-functions": false,
+    "no-bitwise": true,
+    "no-console": false,
+    "no-string-literal": false,
+    "no-unimported-promise": false
+  },
+  "linterOptions": {
+    "exclude": [
+      "tests/**/*"
+    ]
+  }
+}
