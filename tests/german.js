@@ -1,20 +1,43 @@
 function run() {
-	let promiseAffData = fetchAndDecode(geturl(DIC_DIR + "/en_US/en_US.aff"), 'text');
-	let promiseWordData = fetchAndDecode(geturl(DIC_DIR + "/en_US/en_US.dic"), 'text');
+	let dic = 'de_DE';
+	let promiseAffData = fetchTextAff(dic);
+	let promiseWordData = fetchTextDic(dic);
 	var affData = '';
 	var wordData = '';
 	Promise.all([promiseAffData, promiseWordData]).then(values => {
 		affData = values[0];
 		wordData = values[1];
-		var hashDict = new Typo("de_DE", affData, wordData);
-		testDictionary(hashDict);
+		if (TEST_ORIG === true) {
+			new Typo(dic, affData, wordData)
+				.ready.then(dict => testDictionary(dict))
+				.catch(err => QUnit.pushFailure(err));
 
-		var dict = new Typo("de_DE", null, null, {
-			dictionaryPath: DIC_DIR, asyncLoad: true, loadedCallback: function () {
-				testDictionary(dict);
-			}
-		});
+			new Typo(dic)
+				.ready.then(dict => testDictionary(dict))
+				.catch(err => QUnit.pushFailure(err));
+
+			new Typo(dic, null, null, {
+				dictionaryPath: DIC_DIR, loadedCallback: function (err, dict) {
+					if (err) {
+						QUnit.pushFailure(err);
+					} else {
+						testDictionary(dict);
+					}
+				}
+			});
+		} else {
+			var hashDict = new Typo(dic, affData, wordData);
+			testDictionary(hashDict);
+
+			var dict = new Typo(dic, null, null, {
+				dictionaryPath: DIC_DIR, asyncLoad: true, loadedCallback: function () {
+					testDictionary(dict);
+				}
+			});
+		}
+
 	});
+
 }
 
 function testDictionary(dict) {
@@ -23,21 +46,21 @@ function testDictionary(dict) {
 	});
 
 	test("Capitalization is respected", function typo_german_capitalization() {
-		equal(dict.check("Liebe"), false);
-		equal(dict.check("LIEBE"), false);
+		equal(dict.check("Liebe"), true);
+		equal(dict.check("LIEBE"), true);
 
 		// liebe is flagged with ONLYINCOMPOUND, but lieb has a suffix rule that generates liebe
-		equal(dict.check("liebe"), false);
+		equal(dict.check("liebe"), true);
 	});
 
 	test("Issue #21", function typo_german_issue_21() {
-		equal(dict.check("Paar"), false);
-		equal(dict.check("paar"), false);
-		equal(dict.check("auch"), false);
+		equal(dict.check("Paar"), true);
+		equal(dict.check("paar"), true);
+		equal(dict.check("auch"), true);
 		equal(dict.check("man"), true);
-		equal(dict.check("nutzen"), false);
+		equal(dict.check("nutzen"), true);
 		equal(dict.check("paarbildung"), false);
-		equal(dict.check("Bild"), false);
+		equal(dict.check("Bild"), true);
 	});
 }
 

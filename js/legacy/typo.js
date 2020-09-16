@@ -677,6 +677,95 @@
 	  }
 	});
 
+	var aFunction$1 = function (it) {
+	  if (typeof it != 'function') {
+	    throw TypeError(String(it) + ' is not a function');
+	  } return it;
+	};
+
+	// optional / simple context binding
+	var functionBindContext = function (fn, that, length) {
+	  aFunction$1(fn);
+	  if (that === undefined) return fn;
+	  switch (length) {
+	    case 0: return function () {
+	      return fn.call(that);
+	    };
+	    case 1: return function (a) {
+	      return fn.call(that, a);
+	    };
+	    case 2: return function (a, b) {
+	      return fn.call(that, a, b);
+	    };
+	    case 3: return function (a, b, c) {
+	      return fn.call(that, a, b, c);
+	    };
+	  }
+	  return function (/* ...args */) {
+	    return fn.apply(that, arguments);
+	  };
+	};
+
+	var push = [].push;
+
+	// `Array.prototype.{ forEach, map, filter, some, every, find, findIndex }` methods implementation
+	var createMethod$1 = function (TYPE) {
+	  var IS_MAP = TYPE == 1;
+	  var IS_FILTER = TYPE == 2;
+	  var IS_SOME = TYPE == 3;
+	  var IS_EVERY = TYPE == 4;
+	  var IS_FIND_INDEX = TYPE == 6;
+	  var NO_HOLES = TYPE == 5 || IS_FIND_INDEX;
+	  return function ($this, callbackfn, that, specificCreate) {
+	    var O = toObject($this);
+	    var self = indexedObject(O);
+	    var boundFunction = functionBindContext(callbackfn, that, 3);
+	    var length = toLength(self.length);
+	    var index = 0;
+	    var create = specificCreate || arraySpeciesCreate;
+	    var target = IS_MAP ? create($this, length) : IS_FILTER ? create($this, 0) : undefined;
+	    var value, result;
+	    for (;length > index; index++) if (NO_HOLES || index in self) {
+	      value = self[index];
+	      result = boundFunction(value, index, O);
+	      if (TYPE) {
+	        if (IS_MAP) target[index] = result; // map
+	        else if (result) switch (TYPE) {
+	          case 3: return true;              // some
+	          case 5: return value;             // find
+	          case 6: return index;             // findIndex
+	          case 2: push.call(target, value); // filter
+	        } else if (IS_EVERY) return false;  // every
+	      }
+	    }
+	    return IS_FIND_INDEX ? -1 : IS_SOME || IS_EVERY ? IS_EVERY : target;
+	  };
+	};
+
+	var arrayIteration = {
+	  // `Array.prototype.forEach` method
+	  // https://tc39.github.io/ecma262/#sec-array.prototype.foreach
+	  forEach: createMethod$1(0),
+	  // `Array.prototype.map` method
+	  // https://tc39.github.io/ecma262/#sec-array.prototype.map
+	  map: createMethod$1(1),
+	  // `Array.prototype.filter` method
+	  // https://tc39.github.io/ecma262/#sec-array.prototype.filter
+	  filter: createMethod$1(2),
+	  // `Array.prototype.some` method
+	  // https://tc39.github.io/ecma262/#sec-array.prototype.some
+	  some: createMethod$1(3),
+	  // `Array.prototype.every` method
+	  // https://tc39.github.io/ecma262/#sec-array.prototype.every
+	  every: createMethod$1(4),
+	  // `Array.prototype.find` method
+	  // https://tc39.github.io/ecma262/#sec-array.prototype.find
+	  find: createMethod$1(5),
+	  // `Array.prototype.findIndex` method
+	  // https://tc39.github.io/ecma262/#sec-array.prototype.findIndex
+	  findIndex: createMethod$1(6)
+	};
+
 	var arrayMethodIsStrict = function (METHOD_NAME, argument) {
 	  var method = [][METHOD_NAME];
 	  return !!method && fails(function () {
@@ -709,6 +798,25 @@
 	  });
 	};
 
+	var $forEach = arrayIteration.forEach;
+
+
+
+	var STRICT_METHOD = arrayMethodIsStrict('forEach');
+	var USES_TO_LENGTH = arrayMethodUsesToLength('forEach');
+
+	// `Array.prototype.forEach` method implementation
+	// https://tc39.github.io/ecma262/#sec-array.prototype.foreach
+	var arrayForEach = (!STRICT_METHOD || !USES_TO_LENGTH) ? function forEach(callbackfn /* , thisArg */) {
+	  return $forEach(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
+	} : [].forEach;
+
+	// `Array.prototype.forEach` method
+	// https://tc39.github.io/ecma262/#sec-array.prototype.foreach
+	_export({ target: 'Array', proto: true, forced: [].forEach != arrayForEach }, {
+	  forEach: arrayForEach
+	});
+
 	var $indexOf = arrayIncludes.indexOf;
 
 
@@ -716,12 +824,12 @@
 	var nativeIndexOf = [].indexOf;
 
 	var NEGATIVE_ZERO = !!nativeIndexOf && 1 / [1].indexOf(1, -0) < 0;
-	var STRICT_METHOD = arrayMethodIsStrict('indexOf');
-	var USES_TO_LENGTH = arrayMethodUsesToLength('indexOf', { ACCESSORS: true, 1: 0 });
+	var STRICT_METHOD$1 = arrayMethodIsStrict('indexOf');
+	var USES_TO_LENGTH$1 = arrayMethodUsesToLength('indexOf', { ACCESSORS: true, 1: 0 });
 
 	// `Array.prototype.indexOf` method
 	// https://tc39.github.io/ecma262/#sec-array.prototype.indexof
-	_export({ target: 'Array', proto: true, forced: NEGATIVE_ZERO || !STRICT_METHOD || !USES_TO_LENGTH }, {
+	_export({ target: 'Array', proto: true, forced: NEGATIVE_ZERO || !STRICT_METHOD$1 || !USES_TO_LENGTH$1 }, {
 	  indexOf: function indexOf(searchElement /* , fromIndex = 0 */) {
 	    return NEGATIVE_ZERO
 	      // convert -0 to +0
@@ -1073,18 +1181,35 @@
 	var nativeJoin = [].join;
 
 	var ES3_STRINGS = indexedObject != Object;
-	var STRICT_METHOD$1 = arrayMethodIsStrict('join', ',');
+	var STRICT_METHOD$2 = arrayMethodIsStrict('join', ',');
 
 	// `Array.prototype.join` method
 	// https://tc39.github.io/ecma262/#sec-array.prototype.join
-	_export({ target: 'Array', proto: true, forced: ES3_STRINGS || !STRICT_METHOD$1 }, {
+	_export({ target: 'Array', proto: true, forced: ES3_STRINGS || !STRICT_METHOD$2 }, {
 	  join: function join(separator) {
 	    return nativeJoin.call(toIndexedObject(this), separator === undefined ? ',' : separator);
 	  }
 	});
 
-	var HAS_SPECIES_SUPPORT = arrayMethodHasSpeciesSupport('slice');
-	var USES_TO_LENGTH$1 = arrayMethodUsesToLength('slice', { ACCESSORS: true, 0: 0, 1: 2 });
+	var $map = arrayIteration.map;
+
+
+
+	var HAS_SPECIES_SUPPORT = arrayMethodHasSpeciesSupport('map');
+	// FF49- issue
+	var USES_TO_LENGTH$2 = arrayMethodUsesToLength('map');
+
+	// `Array.prototype.map` method
+	// https://tc39.github.io/ecma262/#sec-array.prototype.map
+	// with adding support of @@species
+	_export({ target: 'Array', proto: true, forced: !HAS_SPECIES_SUPPORT || !USES_TO_LENGTH$2 }, {
+	  map: function map(callbackfn /* , thisArg */) {
+	    return $map(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
+	  }
+	});
+
+	var HAS_SPECIES_SUPPORT$1 = arrayMethodHasSpeciesSupport('slice');
+	var USES_TO_LENGTH$3 = arrayMethodUsesToLength('slice', { ACCESSORS: true, 0: 0, 1: 2 });
 
 	var SPECIES$2 = wellKnownSymbol('species');
 	var nativeSlice = [].slice;
@@ -1093,7 +1218,7 @@
 	// `Array.prototype.slice` method
 	// https://tc39.github.io/ecma262/#sec-array.prototype.slice
 	// fallback for not array-like ES3 strings and DOM objects
-	_export({ target: 'Array', proto: true, forced: !HAS_SPECIES_SUPPORT || !USES_TO_LENGTH$1 }, {
+	_export({ target: 'Array', proto: true, forced: !HAS_SPECIES_SUPPORT$1 || !USES_TO_LENGTH$3 }, {
 	  slice: function slice(start, end) {
 	    var O = toIndexedObject(this);
 	    var length = toLength(O.length);
@@ -1184,12 +1309,6 @@
 	  }
 	};
 
-	var aFunction$1 = function (it) {
-	  if (typeof it != 'function') {
-	    throw TypeError(String(it) + ' is not a function');
-	  } return it;
-	};
-
 	var anInstance = function (it, Constructor, name) {
 	  if (!(it instanceof Constructor)) {
 	    throw TypeError('Incorrect ' + (name ? name + ' ' : '') + 'invocation');
@@ -1202,29 +1321,6 @@
 	// check on default Array iterator
 	var isArrayIteratorMethod = function (it) {
 	  return it !== undefined && (iterators.Array === it || ArrayPrototype$1[ITERATOR$2] === it);
-	};
-
-	// optional / simple context binding
-	var functionBindContext = function (fn, that, length) {
-	  aFunction$1(fn);
-	  if (that === undefined) return fn;
-	  switch (length) {
-	    case 0: return function () {
-	      return fn.call(that);
-	    };
-	    case 1: return function (a) {
-	      return fn.call(that, a);
-	    };
-	    case 2: return function (a, b) {
-	      return fn.call(that, a, b);
-	    };
-	    case 3: return function (a, b, c) {
-	      return fn.call(that, a, b, c);
-	    };
-	  }
-	  return function (/* ...args */) {
-	    return fn.apply(that, arguments);
-	  };
 	};
 
 	var ITERATOR$3 = wellKnownSymbol('iterator');
@@ -2181,7 +2277,7 @@
 	}
 
 	// `String.prototype.{ codePointAt, at }` methods implementation
-	var createMethod$1 = function (CONVERT_TO_STRING) {
+	var createMethod$2 = function (CONVERT_TO_STRING) {
 	  return function ($this, pos) {
 	    var S = String(requireObjectCoercible($this));
 	    var position = toInteger(pos);
@@ -2199,10 +2295,10 @@
 	var stringMultibyte = {
 	  // `String.prototype.codePointAt` method
 	  // https://tc39.github.io/ecma262/#sec-string.prototype.codepointat
-	  codeAt: createMethod$1(false),
+	  codeAt: createMethod$2(false),
 	  // `String.prototype.at` method
 	  // https://github.com/mathiasbynens/String.prototype.at
-	  charAt: createMethod$1(true)
+	  charAt: createMethod$2(true)
 	};
 
 	var charAt = stringMultibyte.charAt;
@@ -2681,7 +2777,7 @@
 	var rtrim = RegExp(whitespace + whitespace + '*$');
 
 	// `String.prototype.{ trim, trimStart, trimEnd, trimLeft, trimRight }` methods implementation
-	var createMethod$2 = function (TYPE) {
+	var createMethod$3 = function (TYPE) {
 	  return function ($this) {
 	    var string = String(requireObjectCoercible($this));
 	    if (TYPE & 1) string = string.replace(ltrim, '');
@@ -2693,13 +2789,13 @@
 	var stringTrim = {
 	  // `String.prototype.{ trimLeft, trimStart }` methods
 	  // https://tc39.github.io/ecma262/#sec-string.prototype.trimstart
-	  start: createMethod$2(1),
+	  start: createMethod$3(1),
 	  // `String.prototype.{ trimRight, trimEnd }` methods
 	  // https://tc39.github.io/ecma262/#sec-string.prototype.trimend
-	  end: createMethod$2(2),
+	  end: createMethod$3(2),
 	  // `String.prototype.trim` method
 	  // https://tc39.github.io/ecma262/#sec-string.prototype.trim
-	  trim: createMethod$2(3)
+	  trim: createMethod$3(3)
 	};
 
 	var non = '\u200B\u0085\u180E';
@@ -2759,29 +2855,40 @@
 	  TouchList: 0
 	};
 
+	for (var COLLECTION_NAME in domIterables) {
+	  var Collection = global_1[COLLECTION_NAME];
+	  var CollectionPrototype = Collection && Collection.prototype;
+	  // some Chrome versions have non-configurable methods on DOMTokenList
+	  if (CollectionPrototype && CollectionPrototype.forEach !== arrayForEach) try {
+	    createNonEnumerableProperty(CollectionPrototype, 'forEach', arrayForEach);
+	  } catch (error) {
+	    CollectionPrototype.forEach = arrayForEach;
+	  }
+	}
+
 	var ITERATOR$5 = wellKnownSymbol('iterator');
 	var TO_STRING_TAG$3 = wellKnownSymbol('toStringTag');
 	var ArrayValues = es_array_iterator.values;
 
-	for (var COLLECTION_NAME in domIterables) {
-	  var Collection = global_1[COLLECTION_NAME];
-	  var CollectionPrototype = Collection && Collection.prototype;
-	  if (CollectionPrototype) {
+	for (var COLLECTION_NAME$1 in domIterables) {
+	  var Collection$1 = global_1[COLLECTION_NAME$1];
+	  var CollectionPrototype$1 = Collection$1 && Collection$1.prototype;
+	  if (CollectionPrototype$1) {
 	    // some Chrome versions have non-configurable methods on DOMTokenList
-	    if (CollectionPrototype[ITERATOR$5] !== ArrayValues) try {
-	      createNonEnumerableProperty(CollectionPrototype, ITERATOR$5, ArrayValues);
+	    if (CollectionPrototype$1[ITERATOR$5] !== ArrayValues) try {
+	      createNonEnumerableProperty(CollectionPrototype$1, ITERATOR$5, ArrayValues);
 	    } catch (error) {
-	      CollectionPrototype[ITERATOR$5] = ArrayValues;
+	      CollectionPrototype$1[ITERATOR$5] = ArrayValues;
 	    }
-	    if (!CollectionPrototype[TO_STRING_TAG$3]) {
-	      createNonEnumerableProperty(CollectionPrototype, TO_STRING_TAG$3, COLLECTION_NAME);
+	    if (!CollectionPrototype$1[TO_STRING_TAG$3]) {
+	      createNonEnumerableProperty(CollectionPrototype$1, TO_STRING_TAG$3, COLLECTION_NAME$1);
 	    }
-	    if (domIterables[COLLECTION_NAME]) for (var METHOD_NAME in es_array_iterator) {
+	    if (domIterables[COLLECTION_NAME$1]) for (var METHOD_NAME in es_array_iterator) {
 	      // some Chrome versions have non-configurable methods on DOMTokenList
-	      if (CollectionPrototype[METHOD_NAME] !== es_array_iterator[METHOD_NAME]) try {
-	        createNonEnumerableProperty(CollectionPrototype, METHOD_NAME, es_array_iterator[METHOD_NAME]);
+	      if (CollectionPrototype$1[METHOD_NAME] !== es_array_iterator[METHOD_NAME]) try {
+	        createNonEnumerableProperty(CollectionPrototype$1, METHOD_NAME, es_array_iterator[METHOD_NAME]);
 	      } catch (error) {
-	        CollectionPrototype[METHOD_NAME] = es_array_iterator[METHOD_NAME];
+	        CollectionPrototype$1[METHOD_NAME] = es_array_iterator[METHOD_NAME];
 	      }
 	    }
 	  }
@@ -3702,7 +3809,6 @@
 	    this.memoized = {};
 	    this.loaded = false;
 	    this.options = settings || {
-	      asyncLoad: false,
 	      flags: {}
 	    };
 
@@ -3723,7 +3829,7 @@
 	          while (1) {
 	            switch (_context.prev = _context.next) {
 	              case 0:
-	                response = _this._readFile(url, null, _this.options.asyncLoad);
+	                response = _this._readFile(url, null);
 	                return _context.abrupt("return", response);
 
 	              case 2:
@@ -3763,11 +3869,11 @@
 	                };
 
 	                setup = function setup() {
-	                  if (aff === undefined) {
+	                  if (!aff) {
 	                    return;
 	                  }
 
-	                  if (wData === undefined) {
+	                  if (!wData) {
 	                    return;
 	                  }
 
@@ -3846,12 +3952,6 @@
 	                  } finally {
 	                    _iterator2.f();
 	                  }
-
-	                  _this.loaded = true;
-
-	                  if (_this.options.asyncLoad && _this.options.loadedCallback) {
-	                    _this.options.loadedCallback(_this);
-	                  }
 	                };
 
 	                isChromeExt = function isChromeExt() {
@@ -3874,159 +3974,67 @@
 	                  return false;
 	                };
 
-	                if (!dic) {
-	                  _context2.next = 43;
-	                  break;
+	                if (dic) {
+	                  _this.lDictionary = dic;
+
+	                  if (aff && wData) {
+	                    setup();
+	                  } else if (typeof window__default['default'] !== 'undefined' && (isChromeExt() === true || isBrowserExt() === true)) {
+	                      if (_this.options.dictionaryPath) {
+	                        path = _this.options.dictionaryPath;
+	                      } else {
+	                        path = "typo/dictionaries";
+	                      }
+
+	                      if (isChromeExt() === true) {
+	                        getURL = window__default['default'].chrome.runtime.getURL;
+	                      } else {
+	                        getURL = window__default['default'].browser.runtime.getURL;
+	                      }
+
+	                      if (!aff) {
+	                        pLoadDataAff = readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff")).then(function (affD) {
+	                          setAffData(affD);
+	                        });
+	                      }
+
+	                      if (!wData) {
+	                        pLoadDataDic = readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic")).then(function (wordsD) {
+	                          setWordsData(wordsD);
+	                        });
+	                      }
+	                    } else {
+	                      if (_this.options.dictionaryPath) {
+	                        path = _this.options.dictionaryPath;
+	                      } else if (typeof __dirname !== 'undefined') {
+	                        path = __dirname + '/dictionaries';
+	                      } else {
+	                        path = './dictionaries';
+	                      }
+
+	                      if (!aff) {
+	                        pLoadDataAff = readDataFile(path + "/" + dic + "/" + dic + ".aff").then(function (affD) {
+	                          setAffData(affD);
+	                        });
+	                      }
+
+	                      if (!wData) {
+	                        pLoadDataDic = readDataFile(path + "/" + dic + "/" + dic + ".dic").then(function (wordsD) {
+	                          setWordsData(wordsD);
+	                        });
+	                      }
+	                    }
 	                }
 
-	                _this.lDictionary = dic;
-
-	                if (!(aff && wData)) {
-	                  _context2.next = 11;
-	                  break;
-	                }
-
-	                setup();
-	                _context2.next = 43;
-	                break;
-
-	              case 11:
-	                if (!(typeof window__default['default'] !== 'undefined' && (isChromeExt() === true || isBrowserExt() === true))) {
-	                  _context2.next = 29;
-	                  break;
-	                }
-
-	                if (_this.options.dictionaryPath) {
-	                  path = _this.options.dictionaryPath;
-	                } else {
-	                  path = "typo/dictionaries";
-	                }
-
-	                if (isChromeExt() === true) {
-	                  getURL = window__default['default'].chrome.runtime.getURL;
-	                } else {
-	                  getURL = window__default['default'].browser.runtime.getURL;
-	                }
-
-	                if (!(_this.options.asyncLoad === true)) {
-	                  _context2.next = 19;
-	                  break;
-	                }
-
-	                if (!aff) {
-	                  pLoadDataAff = readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff")).then(function (affD) {
-	                    setAffData(affD);
-	                  });
-	                }
-
-	                if (!wData) {
-	                  pLoadDataDic = readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic")).then(function (wordsD) {
-	                    setWordsData(wordsD);
-	                  });
-	                }
-
-	                _context2.next = 27;
-	                break;
-
-	              case 19:
-	                if (aff) {
-	                  _context2.next = 23;
-	                  break;
-	                }
-
-	                _context2.next = 22;
-	                return readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff")).then(function (affD) {
-	                  setAffData(affD);
-	                });
-
-	              case 22:
-	                pLoadDataAff = _context2.sent;
-
-	              case 23:
-	                if (wData) {
-	                  _context2.next = 27;
-	                  break;
-	                }
-
-	                _context2.next = 26;
-	                return readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic")).then(function (wordsD) {
-	                  setWordsData(wordsD);
-	                });
-
-	              case 26:
-	                pLoadDataDic = _context2.sent;
-
-	              case 27:
-	                _context2.next = 43;
-	                break;
-
-	              case 29:
-	                if (_this.options.dictionaryPath) {
-	                  path = _this.options.dictionaryPath;
-	                } else if (typeof __dirname !== 'undefined') {
-	                  path = __dirname + '/dictionaries';
-	                } else {
-	                  path = './dictionaries';
-	                }
-
-	                if (!(_this.options.asyncLoad === true)) {
-	                  _context2.next = 35;
-	                  break;
-	                }
-
-	                if (!aff) {
-	                  pLoadDataAff = readDataFile(path + "/" + dic + "/" + dic + ".aff").then(function (affD) {
-	                    setAffData(affD);
-	                  });
-	                }
-
-	                if (!wData) {
-	                  pLoadDataDic = readDataFile(path + "/" + dic + "/" + dic + ".dic").then(function (wordsD) {
-	                    setWordsData(wordsD);
-	                  });
-	                }
-
-	                _context2.next = 43;
-	                break;
-
-	              case 35:
-	                if (aff) {
-	                  _context2.next = 39;
-	                  break;
-	                }
-
-	                _context2.next = 38;
-	                return readDataFile(path + "/" + dic + "/" + dic + ".aff").then(function (affD) {
-	                  setAffData(affD);
-	                });
-
-	              case 38:
-	                pLoadDataAff = _context2.sent;
-
-	              case 39:
-	                if (wData) {
-	                  _context2.next = 43;
-	                  break;
-	                }
-
-	                _context2.next = 42;
-	                return readDataFile(path + "/" + dic + "/" + dic + ".dic").then(function (wordsD) {
-	                  setWordsData(wordsD);
-	                });
-
-	              case 42:
-	                pLoadDataDic = _context2.sent;
-
-	              case 43:
 	                return _context2.abrupt("return", new Promise(function (resolve, reject) {
 	                  Promise.all([pLoadDataDic, pLoadDataAff]).then(function () {
 	                    resolve(true);
-	                  }).catch(function () {
-	                    reject(false);
+	                  }).catch(function (err) {
+	                    reject(err);
 	                  });
 	                }));
 
-	              case 44:
+	              case 7:
 	              case "end":
 	                return _context2.stop();
 	            }
@@ -4039,11 +4047,17 @@
 	      };
 	    }();
 
-	    this.ready = new Promise(function (resolve, reject) {
+	    this.readyPromise = new Promise(function (resolve, reject) {
 	      init(dictionary, affData, wordsData).then(function () {
 	        resolve(_this);
-	      }).catch(reject);
+	      }).catch(function (err) {
+	        reject(err);
+	      });
 	    });
+
+	    if (this.options.loadedCallback) {
+	      this.ready.then();
+	    }
 	  }
 
 	  _createClass(Typo, [{
@@ -4066,87 +4080,19 @@
 	  }, {
 	    key: "_readFile",
 	    value: function _readFile(path, charset) {
-	      var async = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
 	      charset = charset || "utf8";
 
-	      if (typeof fetch === 'function') {
+	      if (typeof window__default['default'] !== 'undefined') {
 	        var requestHeaders = new Headers();
 	        requestHeaders.set('Content-Type', "text/plain; charset=" + charset);
-
-	        var aw = function () {
-	          var _ref3 = _asyncToGenerator(regeneratorRuntime.mark(function _callee3(aPath) {
-	            var response;
-	            return regeneratorRuntime.wrap(function _callee3$(_context3) {
-	              while (1) {
-	                switch (_context3.prev = _context3.next) {
-	                  case 0:
-	                    _context3.next = 2;
-	                    return fetch(aPath, {
-	                      method: 'GET',
-	                      headers: requestHeaders
-	                    });
-
-	                  case 2:
-	                    response = _context3.sent;
-	                    return _context3.abrupt("return", response.text());
-
-	                  case 4:
-	                  case "end":
-	                    return _context3.stop();
-	                }
-	              }
-	            }, _callee3);
-	          }));
-
-	          return function aw(_x5) {
-	            return _ref3.apply(this, arguments);
-	          };
-	        }();
-
-	        if (!async) {
-	          return aw(path);
-	        }
-
-	        var fetchIt = function fetchIt(p) {
-	          return fetch(p, {
-	            method: 'GET',
-	            headers: requestHeaders
-	          }).then(function (response) {
-	            return response.text();
-	          });
-	        };
-
-	        return fetchIt(path);
-	      } else if (typeof XMLHttpRequest !== 'undefined') {
-	        var req = new XMLHttpRequest();
-	        req.open("GET", path, async);
-
-	        if (req.overrideMimeType) {
-	          req.overrideMimeType("text/plain; charset=" + charset);
-	        }
-
-	        if (async) {
-	          var promise = new Promise(function (resolve, reject) {
-	            req.onload = function () {
-	              if (req.status === 200) {
-	                resolve(req.responseText);
-	              } else {
-	                reject(req.statusText);
-	              }
-	            };
-
-	            req.onerror = function () {
-	              reject(req.statusText);
-	            };
-	          });
-	          req.send(null);
-	          return promise;
-	        }
-
-	        req.send(null);
-	        return Promise.resolve(req.responseText);
+	        return fetch(path, {
+	          method: 'GET',
+	          headers: requestHeaders
+	        }).then(function (response) {
+	          return response.text();
+	        });
 	      } else if (typeof require !== 'undefined') {
-	        var fs = require("fs");
+	        var fs = require("fs/promises");
 
 	        var result = '';
 	        var _err = null;
@@ -4155,7 +4101,7 @@
 	          if (fs.existsSync(path)) {
 	            result = fs.readFileSync(path, charset);
 	          } else {
-	            console.log("Path " + path + " does not exist.");
+	            throw new Error("Path " + path + " does not exist.");
 	          }
 	        } catch (e) {
 	          _err = e;
@@ -4179,53 +4125,64 @@
 	      var numEntries;
 	      var lineParts;
 	      var i;
-	      var j;
-	      var numIlen;
-	      var numJlen;
+	      var j = 0;
+	      var iLen = 0;
+	      var jLen = 0;
 	      data = this._removeAffixComments(data);
 	      var lines = data.split(/\r?\n/);
+	      iLen = lines.length;
 
-	      for (i = 0, numIlen = lines.length; i < numIlen; i++) {
+	      for (i = 0; i < iLen; i++) {
 	        line = lines[i];
 	        var definitionParts = line.split(/\s+/);
-	        var ruleType = definitionParts[0];
+	        var ruleType = definitionParts[0].toUpperCase();
 
 	        if (ruleType === "PFX" || ruleType === "SFX") {
 	          var ruleCode = definitionParts[1];
-	          var combineable = definitionParts[2];
+	          var combineable = definitionParts[2].toUpperCase();
 	          numEntries = parseInt(definitionParts[3], 10);
 	          var entries = [];
 
-	          for (j = i + 1, numJlen = i + 1 + numEntries; j < numJlen; j++) {
-	            subline = lines[j];
-	            lineParts = subline.split(/\s+/);
-	            var charactersToRemove = lineParts[2];
-	            var additionParts = lineParts[3].split("/");
-	            var charactersToAdd = additionParts[0];
-	            if (charactersToAdd === "0") charactersToAdd = "";
-	            var continuationClasses = this.parseRuleCodes(additionParts[1]);
-	            var regexToMatch = lineParts[4];
-	            var entry = {};
-	            entry.add = charactersToAdd;
-	            if (continuationClasses.length > 0) entry.continuationClasses = continuationClasses;
+	          if (isNaN(numEntries) === false) {
+	            for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
+	              subline = lines[j];
+	              lineParts = subline.split(/\s+/);
+	              var charactersToRemove = lineParts[2];
+	              var additionParts = lineParts[3].split("/");
+	              var charactersToAdd = additionParts[0];
 
-	            if (regexToMatch !== ".") {
-	              if (ruleType === "SFX") {
-	                entry.match = new RegExp(regexToMatch + "$");
-	              } else {
-	                entry.match = new RegExp("^" + regexToMatch);
+	              if (charactersToAdd === "0") {
+	                charactersToAdd = "";
 	              }
-	            }
 
-	            if (charactersToRemove !== "0") {
-	              if (ruleType === "SFX") {
-	                entry.remove = new RegExp(charactersToRemove + "$");
-	              } else {
-	                entry.remove = new RegExp(charactersToRemove);
+	              var continuationClasses = this.parseRuleCodes(additionParts[1]);
+	              var regexToMatch = lineParts[4];
+	              var entry = {
+	                add: charactersToAdd
+	              };
+
+	              if (continuationClasses.length > 0) {
+	                entry.continuationClasses = continuationClasses;
 	              }
-	            }
 
-	            entries.push(entry);
+	              if (regexToMatch !== ".") {
+	                if (ruleType === "SFX") {
+	                  entry.match = new RegExp(regexToMatch + "$");
+	                } else {
+	                  entry.match = new RegExp("^" + regexToMatch);
+	                }
+	              }
+
+	              if (charactersToRemove.toString() !== "0") {
+	                if (ruleType === "SFX") {
+	                  entry.remove = new RegExp(charactersToRemove + "$");
+	                } else {
+	                  entry.remove = new RegExp(charactersToRemove);
+	                }
+	              }
+
+	              entries.push(entry);
+	            }
 	          }
 
 	          rules[ruleCode] = {
@@ -4237,7 +4194,7 @@
 	        } else if (ruleType === "COMPOUNDRULE") {
 	          numEntries = parseInt(definitionParts[1], 10);
 
-	          for (j = i + 1, numJlen = i + 1 + numEntries; j < numJlen; j++) {
+	          for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
 	            line = lines[j];
 	            lineParts = line.split(/\s+/);
 	            this.compoundRules.push(lineParts[1]);
@@ -4304,7 +4261,9 @@
 	            addWord(word, ruleCodesArray);
 	          }
 
-	          for (var j = 0; j < ruleCodesArray.length; j++) {
+	          var jlen = ruleCodesArray.length;
+
+	          for (var j = 0; j < jlen; j++) {
 	            var code = ruleCodesArray[j];
 	            var rule = this.rules[code];
 
@@ -4320,7 +4279,7 @@
 	                  addWord(newWord, []);
 
 	                  if (rule.combineable) {
-	                    for (var k = j + 1; k < ruleCodesArray.length; k++) {
+	                    for (var k = j + 1; k < jlen; k++) {
 	                      var combineCode = ruleCodesArray[k];
 	                      var combineRule = this.rules[combineCode];
 
@@ -4372,6 +4331,8 @@
 	  }, {
 	    key: "_applyRule",
 	    value: function _applyRule(word, rule) {
+	      var _this2 = this;
+
 	      var entries = rule.entries;
 	      var newWords = [];
 
@@ -4383,38 +4344,31 @@
 	          var entry = _step6.value;
 
 	          if (!entry.match || word.match(entry.match)) {
-	            var newWord = word;
+	            (function () {
+	              var newWord = word;
 
-	            if (entry.remove) {
-	              newWord = newWord.replace(entry.remove, "");
-	            }
+	              if (entry.remove) {
+	                newWord = newWord.replace(entry.remove, "");
+	              }
 
-	            if (rule.type === "SFX") {
-	              newWord = newWord + entry.add;
-	            } else {
-	              newWord = entry.add + newWord;
-	            }
+	              if (rule.type === "SFX") {
+	                newWord = newWord + entry.add;
+	              } else {
+	                newWord = entry.add + newWord;
+	              }
 
-	            newWords.push(newWord);
+	              newWords.push(newWord);
 
-	            if ("continuationClasses" in entry) {
-	              var _iterator7 = _createForOfIteratorHelper(entry.continuationClasses),
-	                  _step7;
-
-	              try {
-	                for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
-	                  var continuationRule = _step7.value;
+	              if (entry.continuationClasses) {
+	                entry.continuationClasses.map(function (key) {
+	                  var continuationRule = _this2.rules[key];
 
 	                  if (continuationRule) {
-	                    newWords = newWords.concat(this._applyRule(newWord, continuationRule));
+	                    newWords = newWords.concat(_this2._applyRule(newWord, continuationRule));
 	                  }
-	                }
-	              } catch (err) {
-	                _iterator7.e(err);
-	              } finally {
-	                _iterator7.f();
+	                });
 	              }
-	            }
+	            })();
 	          }
 	        }
 	      } catch (err) {
@@ -4504,41 +4458,41 @@
 
 	      if (typeof ruleCodes === 'undefined') {
 	        if (this.flags.COMPOUNDMIN && word.length >= this.flags.COMPOUNDMIN) {
-	          var _iterator8 = _createForOfIteratorHelper(this.compoundRules),
-	              _step8;
+	          var _iterator7 = _createForOfIteratorHelper(this.compoundRules),
+	              _step7;
 
 	          try {
-	            for (_iterator8.s(); !(_step8 = _iterator8.n()).done;) {
-	              var rule = _step8.value;
+	            for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
+	              var rule = _step7.value;
 
 	              if (word.match(rule)) {
 	                return true;
 	              }
 	            }
 	          } catch (err) {
-	            _iterator8.e(err);
+	            _iterator7.e(err);
 	          } finally {
-	            _iterator8.f();
+	            _iterator7.f();
 	          }
 	        }
 	      } else if (ruleCodes === null) {
 	        return true;
 	      } else if (_typeof(ruleCodes) === 'object') {
-	        var _iterator9 = _createForOfIteratorHelper(ruleCodes),
-	            _step9;
+	        var _iterator8 = _createForOfIteratorHelper(ruleCodes),
+	            _step8;
 
 	        try {
-	          for (_iterator9.s(); !(_step9 = _iterator9.n()).done;) {
-	            var ruleCode = _step9.value;
+	          for (_iterator8.s(); !(_step8 = _iterator8.n()).done;) {
+	            var ruleCode = _step8.value;
 
 	            if (ruleCode !== null && !this.hasFlag(word, "ONLYINCOMPOUND", ruleCode)) {
 	              return true;
 	            }
 	          }
 	        } catch (err) {
-	          _iterator9.e(err);
+	          _iterator8.e(err);
 	        } finally {
-	          _iterator9.f();
+	          _iterator8.f();
 	        }
 	      }
 
@@ -4554,31 +4508,31 @@
 	      var flattenArr = function flattenArr(arr) {
 	        var ar = [];
 
-	        var _iterator10 = _createForOfIteratorHelper(arr),
-	            _step10;
+	        var _iterator9 = _createForOfIteratorHelper(arr),
+	            _step9;
 
 	        try {
-	          for (_iterator10.s(); !(_step10 = _iterator10.n()).done;) {
-	            var a = _step10.value;
+	          for (_iterator9.s(); !(_step9 = _iterator9.n()).done;) {
+	            var a = _step9.value;
 
-	            var _iterator11 = _createForOfIteratorHelper(a),
-	                _step11;
+	            var _iterator10 = _createForOfIteratorHelper(a),
+	                _step10;
 
 	            try {
-	              for (_iterator11.s(); !(_step11 = _iterator11.n()).done;) {
-	                var s = _step11.value;
+	              for (_iterator10.s(); !(_step10 = _iterator10.n()).done;) {
+	                var s = _step10.value;
 	                ar.push(s);
 	              }
 	            } catch (err) {
-	              _iterator11.e(err);
+	              _iterator10.e(err);
 	            } finally {
-	              _iterator11.f();
+	              _iterator10.f();
 	            }
 	          }
 	        } catch (err) {
-	          _iterator10.e(err);
+	          _iterator9.e(err);
 	        } finally {
-	          _iterator10.f();
+	          _iterator9.f();
 	        }
 
 	        return ar;
@@ -4605,7 +4559,7 @@
 	  }, {
 	    key: "suggest",
 	    value: function suggest(word) {
-	      var _this2 = this;
+	      var _this3 = this;
 
 	      var limit = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 5;
 
@@ -4623,12 +4577,12 @@
 
 	      if (this.check(word)) return [];
 
-	      var _iterator12 = _createForOfIteratorHelper(this.replacementTable),
-	          _step12;
+	      var _iterator11 = _createForOfIteratorHelper(this.replacementTable),
+	          _step11;
 
 	      try {
-	        for (_iterator12.s(); !(_step12 = _iterator12.n()).done;) {
-	          var replacementEntry = _step12.value;
+	        for (_iterator11.s(); !(_step11 = _iterator11.n()).done;) {
+	          var replacementEntry = _step11.value;
 
 	          if (word.indexOf(replacementEntry[0]) !== -1) {
 	            var correctedWord = word.replace(replacementEntry[0], replacementEntry[1]);
@@ -4639,9 +4593,9 @@
 	          }
 	        }
 	      } catch (err) {
-	        _iterator12.e(err);
+	        _iterator11.e(err);
 	      } finally {
-	        _iterator12.f();
+	        _iterator11.f();
 	      }
 
 	      var edits1 = function edits1(words) {
@@ -4667,7 +4621,7 @@
 	              if (strSub[1]) {
 	                strEdit = strSub[0] + strSub[1].substring(1);
 
-	                if (!knownOnly || _this2.check(strEdit)) {
+	                if (!knownOnly || _this3.check(strEdit)) {
 	                  if (!(strEdit in rv)) {
 	                    rv[strEdit] = 1;
 	                  } else {
@@ -4679,7 +4633,7 @@
 	              if (strSub[1].length > 1 && strSub[1][1] !== strSub[1][0]) {
 	                strEdit = strSub[0] + strSub[1][1] + strSub[1][0] + strSub[1].substring(2);
 
-	                if (!knownOnly || _this2.check(strEdit)) {
+	                if (!knownOnly || _this3.check(strEdit)) {
 	                  if (!(strEdit in rv)) {
 	                    rv[strEdit] = 1;
 	                  } else {
@@ -4689,11 +4643,11 @@
 	              }
 
 	              if (strSub[1]) {
-	                for (j = 0, numJlen = _this2.ALPHABET.length; j < numJlen; j++) {
-	                  if (_this2.ALPHABET[j] !== strSub[1].substring(0, 1)) {
-	                    strEdit = strSub[0] + _this2.ALPHABET[j] + strSub[1].substring(1);
+	                for (j = 0, numJlen = _this3.ALPHABET.length; j < numJlen; j++) {
+	                  if (_this3.ALPHABET[j] !== strSub[1].substring(0, 1)) {
+	                    strEdit = strSub[0] + _this3.ALPHABET[j] + strSub[1].substring(1);
 
-	                    if (!knownOnly || _this2.check(strEdit)) {
+	                    if (!knownOnly || _this3.check(strEdit)) {
 	                      if (!(strEdit in rv)) {
 	                        rv[strEdit] = 1;
 	                      } else {
@@ -4705,10 +4659,10 @@
 	              }
 
 	              if (strSub[1]) {
-	                for (j = 0, numJlen = _this2.ALPHABET.length; j < numJlen; j++) {
-	                  strEdit = strSub[0] + _this2.ALPHABET[j] + strSub[1];
+	                for (j = 0, numJlen = _this3.ALPHABET.length; j < numJlen; j++) {
+	                  strEdit = strSub[0] + _this3.ALPHABET[j] + strSub[1];
 
-	                  if (!knownOnly || _this2.check(strEdit)) {
+	                  if (!knownOnly || _this3.check(strEdit)) {
 	                    if (!(strEdit in rv)) {
 	                      rv[strEdit] = 1;
 	                    } else {
@@ -4730,7 +4684,7 @@
 	        var weightedCorrections = ed2;
 
 	        for (var ed1word in ed1) {
-	          if (!_this2.check(ed1word)) {
+	          if (!_this3.check(ed1word)) {
 	            continue;
 	          }
 
@@ -4787,7 +4741,7 @@
 	            update = true;
 	          }
 
-	          if (!_this2.hasFlag(sortString, "NOSUGGEST") && rv.indexOf(sortString) === -1) {
+	          if (!_this3.hasFlag(sortString, "NOSUGGEST") && rv.indexOf(sortString) === -1) {
 	            rv.push(sortString);
 	          } else {
 	            workingLimit++;
@@ -4808,9 +4762,30 @@
 	      return this.memoized[word]['suggestions'];
 	    }
 	  }, {
-	    key: "Ready",
+	    key: "ready",
 	    get: function get() {
-	      return this.ready;
+	      var _this4 = this;
+
+	      var doCallBacks = function doCallBacks(err, t) {
+	        if (_this4.options.loadedCallback) {
+	          if (typeof _this4.options.loadedCallback === 'function') {
+	            _this4.options.loadedCallback(err, t);
+	          } else if (_typeof(_this4.options.loadedCallback) === 'object') {
+	            _this4.options.loadedCallback.forEach(function (fn) {
+	              fn(err, t);
+	            });
+	          }
+	        }
+	      };
+
+	      return this.readyPromise.then(function () {
+	        _this4.loaded = true;
+	        doCallBacks(null, _this4);
+	        return _this4;
+	      }).catch(function (err) {
+	        doCallBacks(err, _this4);
+	        throw err;
+	      });
 	    }
 	  }, {
 	    key: "dictionary",

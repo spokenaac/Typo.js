@@ -1,20 +1,37 @@
 function run() {
-	let promiseAffData = fetchAndDecode(geturl(DIC_DIR + "/en_US/en_US.aff"), 'text');
-	let promiseWordData = fetchAndDecode(geturl(DIC_DIR + "/en_US/en_US.dic"), 'text');
+	let dic = 'en_US';
+	let promiseAffData = fetchTextAff(dic);
+	let promiseWordData = fetchTextDic(dic);
 	var affData = '';
 	var wordData = '';
 	Promise.all([promiseAffData, promiseWordData]).then(values => {
 		affData = values[0];
 		wordData = values[1];
-		var hashDict = new Typo("en_US", affData, wordData);
+		if (TEST_ORIG === true) {
+			new Typo(dic, affData, wordData)
+				.ready.then(dict => testDictionary(dict))
+				.catch(err => QUnit.pushFailure(err));
 
-		testDictionary(hashDict);
+			new Typo(dic, null, null)
+				.ready.then(dict => testDictionary(dict))
+				.catch(err => QUnit.pushFailure(err));
 
-		var dict = new Typo("en_US", null, null, {
-			dictionaryPath: DIC_DIR, asyncLoad: true, loadedCallback: function () {
-				testDictionary(dict);
-			}
-		});
+			new Typo(dic, null, null, {
+				dictionaryPath: DIC_DIR, loadedCallback: function (err, dict) {
+					testDictionary(dict);
+				}
+			});
+		} else {
+			var hashDict = new Typo(dic, affData, wordData);
+			testDictionary(hashDict);
+
+			var dict = new Typo(dic, null, null, {
+				dictionaryPath: DIC_DIR, asyncLoad: true, loadedCallback: function () {
+					testDictionary(dict);
+				}
+			});
+		}
+		
 	});
 }
 
@@ -24,29 +41,27 @@ function testDictionary(dict) {
 	});
 
 	test("Suggestions", function () {
-		deepEqual(dict.suggest("speling", 3), [
-			"spelling",
-			"spieling",
-			"spewing"
-		]);
+		deepEqual(dict.suggest("speling", 3), ["spelling", "spieling", "spewing"]);
+
 
 		// Repeated calls function properly.
 		deepEqual(dict.suggest("speling", 1), ["spelling"]);
+
 		deepEqual(dict.suggest("speling"), [
-				"spelling",
-				"spieling",
-				"spewing",
-				"peeling",
-				"selling"
-			]);
+			"spelling",
+			"spieling",
+			"spewing",
+			"peeling",
+			"selling"
+		]);
 		deepEqual(dict.suggest("speling", 2), ["spelling", "spieling"]);
 		deepEqual(dict.suggest("speling"), [
-				"spelling",
-				"spieling",
-				"spewing",
-				"peeling",
-				"selling"
-			]);
+			"spelling",
+			"spieling",
+			"spewing",
+			"peeling",
+			"selling"
+	]);
 
 		// Requesting more suggestions than will be returned doesn't break anything.
 		deepEqual(dict.suggest("spartang", 50), [
@@ -64,19 +79,19 @@ function testDictionary(dict) {
 			"starting"
 		]);
 		deepEqual(dict.suggest("spartang", 30), [
-				"spartan",
-				"sparing",
-				"parting",
-				"smarting",
-				"sparking",
-				"sparling",
-				"sparring",
-				"spatting",
-				"sporting",
-				"sprang",
-				"spurting",
-				"starting"
-			]);
+			"spartan",
+			"sparing",
+			"parting",
+			"smarting",
+			"sparking",
+			"sparling",
+			"sparring",
+			"spatting",
+			"sporting",
+			"sprang",
+			"spurting",
+			"starting"
+		]);
 		deepEqual(dict.suggest("spartang", 1), ["spartan"]);
 
 		deepEqual(dict.suggest("spitting"), [], "Correctly spelled words receive no suggestions.");
@@ -210,12 +225,12 @@ function testDictionary(dict) {
 	test("Capitalizations are handled properly.", function () {
 		deepEqual(dict.suggest("Wagh"), ["Weigh"]);
 		deepEqual(dict.suggest("CEIT"), [
-				"CENT",
-				"CERT",
-				"CHIT",
-				"CIT",
-				"BIT"
-			]);
+			"CENT",
+			"CERT",
+			"CHIT",
+			"CIT",
+			"BIT"
+		]);
 	});
 
 	test("NOSUGGEST is respected", function () {

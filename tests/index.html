@@ -1,18 +1,39 @@
-<html>
-	<head>
-		<meta charset="ISO8859-1">
-		<title>Typo.js Test Suites</title>
-		<link rel="stylesheet" href="tests.css" type="text/css" media="screen" />
-	</head>
-	<body>
-		<p>Test suites:</p>
-		<ul>
-			<li><a href="general.html">Language-independent</a></li>
-			<li><a href="english.html">English-specific</a></li>
-			<li><a href="british.html">British English-specific</a></li>
-			<li><a href="latin.html">Latin-specific</a></li>
-			<li><a href="german.html">German-specific</a></li>
-			<li><a href="french.html">French-specific</a></li>
-		</ul>
-	</body>
+<!DOCTYPE html>
+<html lang="en-GB">
+
+<head>
+	<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+	<title>Typo.js Test Suites</title>
+	<link rel="stylesheet" href="tests.css" type="text/css" media="screen" />
+	<script src="const.js"></script>
+</head>
+
+<body>
+	<div class="container">
+		<div>
+			<p id="test_suite">Test suites:</p>
+			<ul>
+				<li><a href="general.html">Language-independent</a></li>
+				<li><a href="english.html">English-specific</a></li>
+				<li><a href="british.html">British English-specific</a></li>
+				<li><a href="latin.html">Latin-specific</a></li>
+				<li><a href="german.html">German-specific</a></li>
+				<li><a href="french.html">French-specific</a></li>
+				<li><a href="spelling.html">Spelling Suggestions</a></li>
+			</ul>
+		</div>
+	</div>
+</body>
+<script>
+	(() => {
+		if (TEST_ORIG === true) {
+			document.title = 'Typo.js Test Suites';
+			// document.getElementById('test_suite').innerText = 'Test suites:';
+		} else {
+			document.title = 'Typo.js Test ( Original )';
+			// document.getElementById('test_suite').innerText = 'Test suites (original):';
+		}
+	})();
+</script>
+
 </html>

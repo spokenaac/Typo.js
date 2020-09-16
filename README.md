@@ -1,33 +1,45 @@
 <p align="center">
-<a href="https://github.com/Amourspirit/Typo.js">📖 🆃🆈🅿🅾 📖</h1></a>
+<a href="https://www.npmjs.com/package/typo-js-ts">📖 🆃🆈🅿🅾.🅹🆂 📖</h1></a>
 </ br>
 </p>
 <p align="center">
 <a href="https://snyk.io/test/github/Amourspirit/Typo.js?targetFile=package.json">
 <img src="https://snyk.io/test/github/Amourspirit/Typo.js/badge.svg?targetFile=package.json" /></a>
 <img src="https://img.shields.io/github/package-json/v/Amourspirit/Typo.js.svg" />
-<img src="https://img.shields.io/github/license/Amourspirit/Typo.js.svg" />
-<a href="https://github.com/badges/stability-badges"> <img src="https://badges.github.io/stability-badges/dist/experimental.svg" /></a>
+<a href="https://github.com/badges/stability-badges"> <img src="https://badges.github.io/stability-badges/dist/stable.svg" /></a>
 </p>
 
 # Type.js
 
-**Typo** is a JavaScript spellchecker that uses Hunspell-style dictionaries.
+**Typo.js** is a JavaScript spellchecker that uses Hunspell-style dictionaries.
+
+## Node install
+
+````txt
+npm install --save typo-js-ts
+````
 
 ## Usage
 
 Type implements a Ready pattern that returns a [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
 
 ````javascript
-var dictionary = new Typo("en_US");
-    dictionary.Ready.then(()=>{
-      // Promise that dictionary is loaded
-      // do work
-    })
-    .catch((error) => {
-      // dictionary was not loaded
-      console.error(error);
-    });
+var dict = new Typo("en_US");
+dict.Ready.then(()=>{
+  // Promise that dictionary is loaded
+  // do work
+  let spellSuggest = dict.suggest("speling");
+  console.log(spellSuggest);
+  // output [ "spelling", "spieling", "spewing", "peeling", "selling" ]
+
+  spellSuggest = dict.suggest("speling", 1);
+  console.log(spellSuggest);
+  // output: ["spelling"]
+})
+.catch((error) => {
+  // dictionary was not loaded
+  console.error(error);
+});
 ````
 
 or
@@ -36,7 +48,8 @@ or
 new Typo("en_US")
   .Ready.then(dictionary => {
     // Promise that dictionary is loaded
-    // do work
+    // do worl
+    // test if mispelled is the corect spelling for en_US
     console.log(dictionary.check("mispelled"));
   })
   .catch((error) => {
@@ -45,13 +58,33 @@ new Typo("en_US")
   });
 ````
 
-To use **Typo** in a Chrome extension, simply include the *typo.js* file in your extension's background page, and then initialize the dictionary like so:
+or using callback
+
+````javascript
+new Typo('en_US, null, null, {
+  loadedCallback: function (err, dict) {
+    if(err) {
+      console.error(err);
+      return;
+    }
+    let spellSuggest = dict.suggest("spitting")
+    console.log(spellSuggest);
+    // Correctly spelled words receive no suggestions.
+    // output [ ]
+
+    spellSuggest = dict.suggest("speling", 1);
+    console.log(dict.check("Alex")); // true
+    console.log(dict.check("alex")); // false
+);
+````
+
+To use **Typo.js** in a Chrome extension, simply include the *typo.js* file in your extension's background page, and then initialize the dictionary like so:
 
 ```javascript
-var dictionary = new Typo("en_US");
+var dictionary = await new Typo("en_US").ready;
 ```
 
-By default **Typo** looks for dictionaries to be in `typo/dictionaries` path.
+By default **Typo.js** looks for dictionaries to be in `typo/dictionaries` path.
 
 The dictionary path for `us_US` would contain the following:
 
@@ -63,13 +96,17 @@ The default paths for `us_US` would be as follows:
 * `typo/dictionaries/en_US/en_US.aff`
 * `typo/dictionaries/en_US/en_US.dic`
 
-if your dictionaries are stored in a different path then this can be pass to **Typo** by way of the settings.
+if your dictionaries are stored in a different path then this can be pass to **Typo.js** by way of the settings.
 
 ```javascript
-var dictionary = new Typo("en_US", null, null, { dictionaryPath: "hunspell/dictionaries" });
+var dictionary = new Typo("en_US", null, null, {
+  dictionaryPath: "hunspell/dictionaries"
+  });
 dictionary.Ready.then(()=>{
   // Promise that dictionary is loaded
   // do work
+  console.log(dict.check("1st")); // true
+  console.log(dict.check("1th")); // false
 });
 ```
 
@@ -101,7 +138,7 @@ var array_of_suggestions = dictionary.suggest("mispeling");
 // array_of_suggestions == ["misspelling", "dispelling", "misdealing", "misfiling", "misruling"]
 ```
 
-**Typo** has full support for the following Hunspell affix flags:
+**Typo.js** has full support for the following Hunspell affix flags:
 
 * PFX
 * SFX
@@ -116,4 +153,4 @@ var array_of_suggestions = dictionary.suggest("mispeling");
 
 ## Licensing
 
-**Typo** is free software, licensed under the Modified BSD License.
+**Typo.js** is free software, licensed under the Modified BSD License.

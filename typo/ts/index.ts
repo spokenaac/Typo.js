@@ -2,7 +2,7 @@ declare const __dirname: string;
 declare function require(path: string): IRequire;
 
 // declare function typeoLoadedCallback(typo: Typo): void;
-declare type typeoLoadedCallback = (typo: Typo) => void;
+declare type typeoLoadedCallback = (err: any, typo: Typo) => void;
 
 type compoundRuleCodesType = Record<string, string[]>
 
@@ -28,8 +28,8 @@ interface IRequire {
 }
 
 interface IEntry {
-	add?: string
-	continuationClasses?: any
+	add: string
+	continuationClasses?: string[]
 	match?: RegExp
 	remove?: RegExp
 }
@@ -46,8 +46,7 @@ interface IFlags extends ILooseObject {
 interface IOptions {
 	flags: IFlags
 	dictionaryPath?: string
-	asyncLoad: boolean
-	loadedCallback?: typeoLoadedCallback
+	loadedCallback?: typeoLoadedCallback | Array<typeoLoadedCallback>
 }
 // [key:string]: string
 
@@ -74,7 +73,7 @@ interface IDictionaryTable {
  * dictionaries.
  */
 export class Typo {
-	private ready: Promise<any>;
+	private readyPromise: Promise<any>;
 	private ERR_NOT_LOAD = "Dictionary not loaded";
 	private ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 	private options: IOptions;
@@ -124,7 +123,7 @@ export class Typo {
 	 * is the instantiated Typo object.
 	 */
 	public constructor(dictionary?: string, affData?: string, wordsData?: string, settings?: IOptions) {
-		this.options = settings || { asyncLoad: false, flags: {} };
+		this.options = settings || { flags: {} };
 		if (settings !== undefined && settings !== null) {
 			if (settings.flags !== undefined) {
 				this.flags = settings.flags;
@@ -136,7 +135,7 @@ export class Typo {
 		}
 
 		const readDataFile = async (url: string): Promise<string> => {
-			const response = this._readFile(url, null, this.options.asyncLoad);
+			const response = this._readFile(url, null);
 			return response;
 			// response.then(text => {
 			// 	setFunc(text);
@@ -160,10 +159,10 @@ export class Typo {
 				}
 			}
 			const setup = () => {
-				if (aff === undefined) {
+				if (!aff) {
 					return;
 				}
-				if (wData === undefined) {
+				if (!wData) {
 					return;
 				}
 				this.rules = this._parseAFF(aff);
@@ -216,11 +215,6 @@ export class Typo {
 						i++;
 					}
 				}
-				this.loaded = true;
-
-				if (this.options.asyncLoad && this.options.loadedCallback) {
-					this.options.loadedCallback(this);
-				}
 			}
 
 			const isChromeExt = () => {
@@ -236,8 +230,8 @@ export class Typo {
 				return false;
 			}
 			let path: string;
-			let pLoadDataAff:any;
-			let pLoadDataDic:any;
+			let pLoadDataAff: any;
+			let pLoadDataDic: any;
 			// Loop-control variables.
 			let i: number;
 			if (dic) {
@@ -261,34 +255,18 @@ export class Typo {
 					} else {
 						getURL = (<any>window).browser.runtime.getURL;
 					}
-					if (this.options.asyncLoad === true) {
-						if (!aff) {
-							pLoadDataAff = readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff"))
+					if (!aff) {
+						pLoadDataAff = readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff"))
 							.then(affD => {
 								setAffData(affD);
 							});
-						}
-						if (!wData) {
-							pLoadDataDic = readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic"))
+					}
+					if (!wData) {
+						pLoadDataDic = readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic"))
 							.then(wordsD => {
 								setWordsData(wordsD);
 							});
-						}
-					} else {
-						if (!aff) {
-							pLoadDataAff = await readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff"))
-								.then(affD => {
-									setAffData(affD);
-								});
-						}
-						if (!wData) {
-							pLoadDataDic = await readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic"))
-								.then(wordsD => {
-									setWordsData(wordsD);
-								});
-						}
 					}
-					
 				}
 				else {
 					if (this.options.dictionaryPath) {
@@ -300,64 +278,67 @@ export class Typo {
 					else {
 						path = './dictionaries';
 					}
-					if (this.options.asyncLoad === true) {
-						if (!aff) {
-							pLoadDataAff = readDataFile(path + "/" + dic + "/" + dic + ".aff")
-								.then(affD => {
-									setAffData(affD);
-								});
-						}
-						if (!wData) {
-							pLoadDataDic = readDataFile(path + "/" + dic + "/" + dic + ".dic")
-								.then(wordsD => {
-									setWordsData(wordsD);
-								});
-						}
-					} else {
-						if (!aff) {
-							pLoadDataAff = await readDataFile(path + "/" + dic + "/" + dic + ".aff")
-								.then(affD => {
-									setAffData(affD);
-								});
-						}
-						if (!wData) {
-							pLoadDataDic = await readDataFile(path + "/" + dic + "/" + dic + ".dic")
-								.then(wordsD => {
-									setWordsData(wordsD);
-								});
-						}
+					if (!aff) {
+						pLoadDataAff = readDataFile(path + "/" + dic + "/" + dic + ".aff")
+							.then(affD => {
+								setAffData(affD);
+							});
 					}
-					
+					if (!wData) {
+						pLoadDataDic = readDataFile(path + "/" + dic + "/" + dic + ".dic")
+							.then(wordsD => {
+								setWordsData(wordsD);
+							});
+					}
+
 				}
 			}
 			return new Promise<boolean>((resolve, reject) => {
 				Promise.all([pLoadDataDic, pLoadDataAff])
 					.then(() => { resolve(true); })
-					.catch(() => { reject(false); });
+					.catch(err => { reject(err); });
 			});
-			
+
 		}
 
-		this.ready = new Promise((resolve, reject) => {
+		this.readyPromise = new Promise((resolve, reject) => {
 			init(dictionary, affData, wordsData)
-				.then(() => { resolve(this); })
-				.catch(reject);
+				.then(() => {
+					resolve(this);
+				})
+				.catch((err) => {
+					reject(err);
+				});
 		});
-		
-		// if (this.options.asyncLoad === true) {
-		// 	return (async (): Typo => {
 
-		// 		// await anything you want
-
-		// 		return this; // Return the newly-created instance
-		// 	}).call(this);
-		// } else {
+		if (this.options.loadedCallback) {
+			this.ready.then();
+		}
 	}
 	//#endregion Constructor
 
 	//#region  Properties
-	get Ready() {
-		return this.ready;
+	get ready() {
+		const doCallBacks = (err: any, t: Typo) => {
+			if (this.options.loadedCallback) {
+				if (typeof this.options.loadedCallback === 'function') {
+					this.options.loadedCallback(err, t);
+				} else if (typeof this.options.loadedCallback === 'object') {
+					this.options.loadedCallback.forEach(fn => {
+						fn(err, t);
+					});
+				}
+			}
+		};
+		return this.readyPromise.then(() => {
+			this.loaded = true; // store the result
+			doCallBacks(null, this);
+			return this; // this is what makes the one-liner possible!
+		})
+			.catch(err => {
+				doCallBacks(err, this);
+				throw err;
+		});
 	}
 	get dictionary() {
 		if (this.lDictionary === '') {
@@ -398,63 +379,25 @@ export class Typo {
 	 * @returns {String} The file data if async is false, otherwise a promise object. If running node.js, the data is
 	 * always returned.
 	 */
-	private _readFile(path: string, charset: string | null, async: boolean = false): Promise<string> {
+	private _readFile(path: string, charset: string | null): Promise<string> {
 		charset = charset || "utf8";
-		if (typeof fetch === 'function') {
+		if (typeof window !== 'undefined') {
 			const requestHeaders: HeadersInit = new Headers();
 			requestHeaders.set('Content-Type', "text/plain; charset=" + charset);
-			const aw = async (aPath: string) => {
-				const response = await fetch(aPath, {
-					method: 'GET',
-					headers: requestHeaders
-				});
-				return response.text();
-			}
-			if (!async) {
-				return aw(path);
-			}
-			const fetchIt = (p: string) => {
-				return fetch(p, {
-					method: 'GET',
-					headers: requestHeaders
-				}).then((response) => response.text());
-			}
-			return fetchIt(path);
-		} else if (typeof XMLHttpRequest !== 'undefined') {
-			const req = new XMLHttpRequest();
-			req.open("GET", path, async);
-			if (req.overrideMimeType) {
-				req.overrideMimeType("text/plain; charset=" + charset);
-			}
-			if (async) {
-				const promise = new Promise<string>(function (resolve, reject) {
-					req.onload = function () {
-						if (req.status === 200) {
-							resolve(req.responseText);
-						}
-						else {
-							reject(req.statusText);
-						}
-					};
-					req.onerror = function () {
-						reject(req.statusText);
-					}
-				});
-				req.send(null);
-				return promise;
-			}
-			req.send(null);
-			return Promise.resolve(req.responseText);
+			return fetch(path, {
+				method: 'GET',
+				headers: requestHeaders
+			}).then((response) => response.text());;
 
 		} else if (typeof require !== 'undefined') { // Node.js
-			const fs = require("fs");
+			const fs = require("fs/promises");
 			let result = '';
 			let err: any = null;
 			try {
 				if (fs.existsSync(path)) {
 					result = fs.readFileSync(path, charset);
 				} else {
-					console.log("Path " + path + " does not exist.");
+					throw new Error("Path " + path + " does not exist.");
 				}
 			} catch (e) {
 				err = e;
@@ -477,73 +420,76 @@ export class Typo {
 		let numEntries: number;
 		let lineParts: string[];
 		let i: number;
-		let j: number;
-		let numIlen: Number;
-		let numJlen: number;
+		let j: number = 0;
+		let iLen: number = 0;
+		let jLen: number = 0;
 
 		// Remove comment lines
 		data = this._removeAffixComments(data);
 
 		const lines = data.split(/\r?\n/);
-
-		for (i = 0, numIlen = lines.length; i < numIlen; i++) {
+		iLen = lines.length;
+		for (i = 0; i < iLen; i++) {
 			line = lines[i];
 
 			const definitionParts = line.split(/\s+/);
 
-			const ruleType = definitionParts[0];
-
+			const ruleType = definitionParts[0].toUpperCase();
 			if (ruleType === "PFX" || ruleType === "SFX") {
 				const ruleCode = definitionParts[1];
-				const combineable = definitionParts[2];
+				const combineable = definitionParts[2].toUpperCase();
 				numEntries = parseInt(definitionParts[3], 10);
 
 				const entries: IEntry[] = [];
 
+				if (isNaN(numEntries) === false) {
+					for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
+						subline = lines[j];
 
-				for (j = i + 1, numJlen = i + 1 + numEntries; j < numJlen; j++) {
-					subline = lines[j];
+						lineParts = subline.split(/\s+/);
+						const charactersToRemove: string = lineParts[2];
 
-					lineParts = subline.split(/\s+/);
-					const charactersToRemove: string = lineParts[2];
+						const additionParts: string[] = lineParts[3].split("/");
 
-					const additionParts: string[] = lineParts[3].split("/");
-
-					let charactersToAdd: string = additionParts[0];
-					if (charactersToAdd === "0")
-						charactersToAdd = "";
-
-
-					const continuationClasses: string[] = this.parseRuleCodes(additionParts[1]);
-
-					const regexToMatch = lineParts[4];
-
-					const entry: IEntry = {};
-					entry.add = charactersToAdd;
-
-					if (continuationClasses.length > 0)
-						entry.continuationClasses = continuationClasses;
-
-
-					if (regexToMatch !== ".") {
-						if (ruleType === "SFX") {
-							entry.match = new RegExp(regexToMatch + "$");
-						} else {
-							entry.match = new RegExp("^" + regexToMatch);
+						let charactersToAdd: string = additionParts[0];
+						if (charactersToAdd === "0") {
+							charactersToAdd = "";
 						}
-					}
 
-					if (charactersToRemove !== "0") {
-						if (ruleType === "SFX") {
-							entry.remove = new RegExp(charactersToRemove + "$");
-						} else {
-							entry.remove = new RegExp(charactersToRemove);
+
+						const continuationClasses: string[] = this.parseRuleCodes(additionParts[1]);
+
+						const regexToMatch = lineParts[4];
+
+						const entry: IEntry = {
+							add: charactersToAdd
+						};
+
+						if (continuationClasses.length > 0) {
+							entry.continuationClasses = continuationClasses;
 						}
-					}
 
-					entries.push(entry);
+						if (regexToMatch !== ".") {
+							if (ruleType === "SFX") {
+								entry.match = new RegExp(regexToMatch + "$");
+							} else {
+								entry.match = new RegExp("^" + regexToMatch);
+							}
+						}
+
+						if (charactersToRemove.toString() !== "0") {
+							if (ruleType === "SFX") {
+								entry.remove = new RegExp(charactersToRemove + "$");
+							} else {
+								// in original Typo.js this was added as string
+								// entry.remove = charactersToRemove;
+								entry.remove = new RegExp(charactersToRemove);
+							}
+						}
+
+						entries.push(entry);
+					}
 				}
-
 				rules[ruleCode] = {
 					"type": ruleType,
 					"combineable": (combineable === "Y"),
@@ -551,10 +497,11 @@ export class Typo {
 				};
 
 				i += numEntries;
-			} else if (ruleType === "COMPOUNDRULE") {
+			}
+			else if (ruleType === "COMPOUNDRULE") {
 				numEntries = parseInt(definitionParts[1], 10);
 
-				for (j = i + 1, numJlen = i + 1 + numEntries; j < numJlen; j++) {
+				for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
 					line = lines[j];
 
 					lineParts = line.split(/\s+/);
@@ -691,7 +638,8 @@ export class Typo {
 					|| (this.flags.NEEDAFFIX && ruleCodesArray.indexOf(this.flags.NEEDAFFIX) === -1)) {
 					addWord(word, ruleCodesArray);
 				}
-				for (let j = 0; j < ruleCodesArray.length; j++) {
+				const jlen = ruleCodesArray.length;
+				for (let j = 0; j < jlen; j++) {
 					const code = ruleCodesArray[j];
 
 					const rule = this.rules[code];
@@ -702,7 +650,7 @@ export class Typo {
 							addWord(newWord, []);
 
 							if (rule.combineable) {
-								for (let k = j + 1; k < ruleCodesArray.length; k++) {
+								for (let k = j + 1; k < jlen; k++) {
 									const combineCode = ruleCodesArray[k];
 									const combineRule = this.rules[combineCode];
 
@@ -749,8 +697,11 @@ export class Typo {
 	// #region _applyRule
 	private _applyRule(word: string, rule: IRuleCodes): string[] {
 
-		const entries = rule.entries;
+		const entries: IEntry[] = rule.entries;
 		let newWords: string[] = [];
+		// if (!entries) {
+		// 	return newWords;
+		// }
 		for (const entry of entries) {
 			if (!entry.match || word.match(entry.match)) {
 				let newWord = word;
@@ -763,21 +714,25 @@ export class Typo {
 					newWord = newWord + entry.add;
 				} else {
 					newWord = entry.add + newWord;
-				} newWords.push(newWord);
+				}
+				
+				newWords.push(newWord);
 
-				if ("continuationClasses" in entry) {
-					for (const continuationRule of entry.continuationClasses) {
-						if (continuationRule) {
+				if (entry.continuationClasses) {
+					entry.continuationClasses.map(key => {
+						const continuationRule = this.rules[key];
+
+						if(continuationRule) {
 							newWords = newWords.concat(this._applyRule(newWord, continuationRule));
 						}
 						/*
-						else {
-							// This shouldn't happen, but it does, at least in the de_DE dictionary.
-							// I think the author mistakenly supplied lower-case rule codes instead
-							// of upper-case.
-						}
-						*/
+					else {
+						// This shouldn't happen, but it does, at least in the de_DE dictionary.
+						// I think the author mistakenly supplied lower-case rule codes instead
+						// of upper-case.
 					}
+					*/
+					});
 				}
 			}
 		}
@@ -796,7 +751,7 @@ export class Typo {
 	 * 
 	 * @param {string} textCodes
 	 */
-	public parseRuleCodes(textCodes: string): string[] {
+	private parseRuleCodes(textCodes: string): string[] {
 		if (!textCodes || this.flags === undefined) {
 			return [];
 		} else if (!(this.flags.FLAG)) {

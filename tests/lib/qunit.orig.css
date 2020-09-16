@@ -1,0 +1,40 @@
+#qunit-header {
+  color: #171717;
+  background-color: #b00000;
+}
+#qunit-header a {
+  color: #ffd4d4;
+}
+#qunit-userAgent {
+  background-color: #595959;
+}
+#qunit-testrunner-toolbar {
+  padding: 0.5em 0 0.5em 2em;
+  color: #B0DD05;
+  background-color: #8a8a8a;
+}
+#qunit-testresult {
+  color: #fff;
+  background-color: #8A8A8A;
+}
+
+#qunit-tests .pass {
+  color: #000;
+  background-color: #7D7D7D;
+}
+
+#qunit-tests li {
+  border-bottom: 1px solid #a8a8a8;
+}
+
+#qunit-tests .pass .test-name {
+  color: #9bc4f9;
+}
+
+#qunit-tests li a {
+  color: #b5b5b5;
+}
+
+#qunit-tests b.passed {
+  color: #B0DD05;
+}

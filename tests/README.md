@@ -1,9 +1,8 @@
 # Testing
 
-Testing of **Typo** can be done running Grunt build and then grunt tests.
-This will compile the project, set up the test and start a http server for testing.
+Testing of **Typo.js** can be done running Grunt.
+Run the command `grunt help` to get a list of commands and testing
+availible for this project.
 
-These tests can be run by loading the entire **Typo** project as a Chrome 
-extension and then clicking the **Typo** Testing Harness icon in the browser.
-A manifest.json file is included in the project root to make this as easy
-as possible.
+To run main test for project run `grunt build` to build projsct.
+Run `grunt tests` will start a local web server, and load test harness.

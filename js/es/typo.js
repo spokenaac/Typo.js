@@ -38,7 +38,6 @@
       this.memoized = {};
       this.loaded = false;
       this.options = settings || {
-        asyncLoad: false,
         flags: {}
       };
 
@@ -53,7 +52,7 @@
       }
 
       const readDataFile = async url => {
-        const response = this._readFile(url, null, this.options.asyncLoad);
+        const response = this._readFile(url, null);
 
         return response;
       };
@@ -76,11 +75,11 @@
         };
 
         const setup = () => {
-          if (aff === undefined) {
+          if (!aff) {
             return;
           }
 
-          if (wData === undefined) {
+          if (!wData) {
             return;
           }
 
@@ -126,12 +125,6 @@
               this.compoundRules[i] = new RegExp(expressionText, "i");
               i++;
             }
-          }
-
-          this.loaded = true;
-
-          if (this.options.asyncLoad && this.options.loadedCallback) {
-            this.options.loadedCallback(this);
           }
         };
 
@@ -180,30 +173,16 @@
                 getURL = window.browser.runtime.getURL;
               }
 
-              if (this.options.asyncLoad === true) {
-                if (!aff) {
-                  pLoadDataAff = readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff")).then(affD => {
-                    setAffData(affD);
-                  });
-                }
+              if (!aff) {
+                pLoadDataAff = readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff")).then(affD => {
+                  setAffData(affD);
+                });
+              }
 
-                if (!wData) {
-                  pLoadDataDic = readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic")).then(wordsD => {
-                    setWordsData(wordsD);
-                  });
-                }
-              } else {
-                if (!aff) {
-                  pLoadDataAff = await readDataFile(getURL(path + "/" + dic + "/" + dic + ".aff")).then(affD => {
-                    setAffData(affD);
-                  });
-                }
-
-                if (!wData) {
-                  pLoadDataDic = await readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic")).then(wordsD => {
-                    setWordsData(wordsD);
-                  });
-                }
+              if (!wData) {
+                pLoadDataDic = readDataFile(getURL(path + "/" + dic + "/" + dic + ".dic")).then(wordsD => {
+                  setWordsData(wordsD);
+                });
               }
             } else {
               if (this.options.dictionaryPath) {
@@ -214,30 +193,16 @@
                 path = './dictionaries';
               }
 
-              if (this.options.asyncLoad === true) {
-                if (!aff) {
-                  pLoadDataAff = readDataFile(path + "/" + dic + "/" + dic + ".aff").then(affD => {
-                    setAffData(affD);
-                  });
-                }
+              if (!aff) {
+                pLoadDataAff = readDataFile(path + "/" + dic + "/" + dic + ".aff").then(affD => {
+                  setAffData(affD);
+                });
+              }
 
-                if (!wData) {
-                  pLoadDataDic = readDataFile(path + "/" + dic + "/" + dic + ".dic").then(wordsD => {
-                    setWordsData(wordsD);
-                  });
-                }
-              } else {
-                if (!aff) {
-                  pLoadDataAff = await readDataFile(path + "/" + dic + "/" + dic + ".aff").then(affD => {
-                    setAffData(affD);
-                  });
-                }
-
-                if (!wData) {
-                  pLoadDataDic = await readDataFile(path + "/" + dic + "/" + dic + ".dic").then(wordsD => {
-                    setWordsData(wordsD);
-                  });
-                }
+              if (!wData) {
+                pLoadDataDic = readDataFile(path + "/" + dic + "/" + dic + ".dic").then(wordsD => {
+                  setWordsData(wordsD);
+                });
               }
             }
         }
@@ -245,17 +210,23 @@
         return new Promise((resolve, reject) => {
           Promise.all([pLoadDataDic, pLoadDataAff]).then(() => {
             resolve(true);
-          }).catch(() => {
-            reject(false);
+          }).catch(err => {
+            reject(err);
           });
         });
       };
 
-      this.ready = new Promise((resolve, reject) => {
+      this.readyPromise = new Promise((resolve, reject) => {
         init(dictionary, affData, wordsData).then(() => {
           resolve(this);
-        }).catch(reject);
+        }).catch(err => {
+          reject(err);
+        });
       });
+
+      if (this.options.loadedCallback) {
+        this.ready.then();
+      }
     }
 
     _createClass(Typo, [{
@@ -277,63 +248,18 @@
       }
     }, {
       key: "_readFile",
-      value: function _readFile(path, charset, async = false) {
+      value: function _readFile(path, charset) {
         charset = charset || "utf8";
 
-        if (typeof fetch === 'function') {
+        if (typeof window !== 'undefined') {
           const requestHeaders = new Headers();
           requestHeaders.set('Content-Type', "text/plain; charset=" + charset);
-
-          const aw = async aPath => {
-            const response = await fetch(aPath, {
-              method: 'GET',
-              headers: requestHeaders
-            });
-            return response.text();
-          };
-
-          if (!async) {
-            return aw(path);
-          }
-
-          const fetchIt = p => {
-            return fetch(p, {
-              method: 'GET',
-              headers: requestHeaders
-            }).then(response => response.text());
-          };
-
-          return fetchIt(path);
-        } else if (typeof XMLHttpRequest !== 'undefined') {
-          const req = new XMLHttpRequest();
-          req.open("GET", path, async);
-
-          if (req.overrideMimeType) {
-            req.overrideMimeType("text/plain; charset=" + charset);
-          }
-
-          if (async) {
-            const promise = new Promise(function (resolve, reject) {
-              req.onload = function () {
-                if (req.status === 200) {
-                  resolve(req.responseText);
-                } else {
-                  reject(req.statusText);
-                }
-              };
-
-              req.onerror = function () {
-                reject(req.statusText);
-              };
-            });
-            req.send(null);
-            return promise;
-          }
-
-          req.send(null);
-          return Promise.resolve(req.responseText);
+          return fetch(path, {
+            method: 'GET',
+            headers: requestHeaders
+          }).then(response => response.text());
         } else if (typeof require !== 'undefined') {
-          const fs = require("fs");
+          const fs = require("fs/promises");
 
           let result = '';
           let err = null;
@@ -342,7 +268,7 @@
             if (fs.existsSync(path)) {
               result = fs.readFileSync(path, charset);
             } else {
-              console.log("Path " + path + " does not exist.");
+              throw new Error("Path " + path + " does not exist.");
             }
           } catch (e) {
             err = e;
@@ -366,53 +292,64 @@
         let numEntries;
         let lineParts;
         let i;
-        let j;
-        let numIlen;
-        let numJlen;
+        let j = 0;
+        let iLen = 0;
+        let jLen = 0;
         data = this._removeAffixComments(data);
         const lines = data.split(/\r?\n/);
+        iLen = lines.length;
 
-        for (i = 0, numIlen = lines.length; i < numIlen; i++) {
+        for (i = 0; i < iLen; i++) {
           line = lines[i];
           const definitionParts = line.split(/\s+/);
-          const ruleType = definitionParts[0];
+          const ruleType = definitionParts[0].toUpperCase();
 
           if (ruleType === "PFX" || ruleType === "SFX") {
             const ruleCode = definitionParts[1];
-            const combineable = definitionParts[2];
+            const combineable = definitionParts[2].toUpperCase();
             numEntries = parseInt(definitionParts[3], 10);
             const entries = [];
 
-            for (j = i + 1, numJlen = i + 1 + numEntries; j < numJlen; j++) {
-              subline = lines[j];
-              lineParts = subline.split(/\s+/);
-              const charactersToRemove = lineParts[2];
-              const additionParts = lineParts[3].split("/");
-              let charactersToAdd = additionParts[0];
-              if (charactersToAdd === "0") charactersToAdd = "";
-              const continuationClasses = this.parseRuleCodes(additionParts[1]);
-              const regexToMatch = lineParts[4];
-              const entry = {};
-              entry.add = charactersToAdd;
-              if (continuationClasses.length > 0) entry.continuationClasses = continuationClasses;
+            if (isNaN(numEntries) === false) {
+              for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
+                subline = lines[j];
+                lineParts = subline.split(/\s+/);
+                const charactersToRemove = lineParts[2];
+                const additionParts = lineParts[3].split("/");
+                let charactersToAdd = additionParts[0];
 
-              if (regexToMatch !== ".") {
-                if (ruleType === "SFX") {
-                  entry.match = new RegExp(regexToMatch + "$");
-                } else {
-                  entry.match = new RegExp("^" + regexToMatch);
+                if (charactersToAdd === "0") {
+                  charactersToAdd = "";
                 }
-              }
 
-              if (charactersToRemove !== "0") {
-                if (ruleType === "SFX") {
-                  entry.remove = new RegExp(charactersToRemove + "$");
-                } else {
-                  entry.remove = new RegExp(charactersToRemove);
+                const continuationClasses = this.parseRuleCodes(additionParts[1]);
+                const regexToMatch = lineParts[4];
+                const entry = {
+                  add: charactersToAdd
+                };
+
+                if (continuationClasses.length > 0) {
+                  entry.continuationClasses = continuationClasses;
                 }
-              }
 
-              entries.push(entry);
+                if (regexToMatch !== ".") {
+                  if (ruleType === "SFX") {
+                    entry.match = new RegExp(regexToMatch + "$");
+                  } else {
+                    entry.match = new RegExp("^" + regexToMatch);
+                  }
+                }
+
+                if (charactersToRemove.toString() !== "0") {
+                  if (ruleType === "SFX") {
+                    entry.remove = new RegExp(charactersToRemove + "$");
+                  } else {
+                    entry.remove = new RegExp(charactersToRemove);
+                  }
+                }
+
+                entries.push(entry);
+              }
             }
 
             rules[ruleCode] = {
@@ -424,7 +361,7 @@
           } else if (ruleType === "COMPOUNDRULE") {
             numEntries = parseInt(definitionParts[1], 10);
 
-            for (j = i + 1, numJlen = i + 1 + numEntries; j < numJlen; j++) {
+            for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
               line = lines[j];
               lineParts = line.split(/\s+/);
               this.compoundRules.push(lineParts[1]);
@@ -491,7 +428,9 @@
               addWord(word, ruleCodesArray);
             }
 
-            for (let j = 0; j < ruleCodesArray.length; j++) {
+            const jlen = ruleCodesArray.length;
+
+            for (let j = 0; j < jlen; j++) {
               const code = ruleCodesArray[j];
               const rule = this.rules[code];
 
@@ -502,7 +441,7 @@
                   addWord(newWord, []);
 
                   if (rule.combineable) {
-                    for (let k = j + 1; k < ruleCodesArray.length; k++) {
+                    for (let k = j + 1; k < jlen; k++) {
                       const combineCode = ruleCodesArray[k];
                       const combineRule = this.rules[combineCode];
 
@@ -558,12 +497,14 @@
 
             newWords.push(newWord);
 
-            if ("continuationClasses" in entry) {
-              for (const continuationRule of entry.continuationClasses) {
+            if (entry.continuationClasses) {
+              entry.continuationClasses.map(key => {
+                const continuationRule = this.rules[key];
+
                 if (continuationRule) {
                   newWords = newWords.concat(this._applyRule(newWord, continuationRule));
                 }
-              }
+              });
             }
           }
         }
@@ -890,9 +831,28 @@
         return this.memoized[word]['suggestions'];
       }
     }, {
-      key: "Ready",
+      key: "ready",
       get: function () {
-        return this.ready;
+        const doCallBacks = (err, t) => {
+          if (this.options.loadedCallback) {
+            if (typeof this.options.loadedCallback === 'function') {
+              this.options.loadedCallback(err, t);
+            } else if (typeof this.options.loadedCallback === 'object') {
+              this.options.loadedCallback.forEach(fn => {
+                fn(err, t);
+              });
+            }
+          }
+        };
+
+        return this.readyPromise.then(() => {
+          this.loaded = true;
+          doCallBacks(null, this);
+          return this;
+        }).catch(err => {
+          doCallBacks(err, this);
+          throw err;
+        });
       }
     }, {
       key: "dictionary",

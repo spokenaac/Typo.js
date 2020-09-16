@@ -3,7 +3,7 @@
   // Define your library strictly...
 })();
 module.exports = (grunt) => {
-  //#region Grund setup
+  //#region Grunt setup
   const isWin = process.platform === "win32";
   const getNodeMajor = () => {
     // https://www.regexpal.com/?fam=108819
@@ -42,13 +42,13 @@ module.exports = (grunt) => {
       return pkg._jsLegacyFile;
     },
     PKG_JS: () => {
-      return pkg._jsLegacyFile;
+      return pkg._jsEsFile;
     },
     JS_MIN: () => {
-      return pkg._jsLegacyFile.replace('.js', '.min.js');
+      return pkg._jsEsFile.replace('.js', '.min.js');
     },
     JS_DIR: () => {
-      const s = pkg._jsLegacyFile;
+      const s = pkg._jsEsFile;
       return s.substr(0, s.lastIndexOf('/') + 1);
     },
     //#endregion
@@ -92,7 +92,12 @@ module.exports = (grunt) => {
       out: ['<%= OUT %>'],
       js: ['<%= JS_DIR %>/*.js'],
       test: ['<%= TEST_DIR %>'],
-      test_html: ['<%= TEST_DIR %>/*.html']
+      test_html: ['<%= TEST_DIR %>/*.html'],
+      test_orig: [
+        '<%= TEST_DIR %>/tests.css',
+        '<%= TEST_DIR %>/const.js',
+        '<%= TEST_DIR %>/spelling.html'
+      ]
     },
 
     tslint: {
@@ -162,6 +167,18 @@ module.exports = (grunt) => {
           src: '<%= SCRATCH_BUILD %>/index.d.ts',
           dest: '<%= PKG_TYPE %>'
         }]
+      },
+      test_old_css: {
+        files: [{
+          src: 'tests/tests.orig.css',
+          dest: '<%= TEST_DIR %>/tests.css'
+        }]
+      },
+      test_old_spelling: {
+        files: [{
+          src: 'tests/spelling.orig.html',
+          dest: '<%= TEST_DIR %>/spelling.html'
+        }]
       }
     },
     terser: {
@@ -198,6 +215,20 @@ module.exports = (grunt) => {
           src: '**/*html',
           dest: '<%= TEST_DIR %>'
         }]
+      },
+      test_orig_flag: {
+        options: {
+          patterns: [
+            {
+              match: /(?:var|const|let)\s+TEST_ORIG\s+=\s(?:true|false);/g,
+              replacement: 'const TEST_ORIG = false;'
+            }
+          ]
+        },
+        files: [{
+          src: 'tests/const.js',
+          dest: '<%= TEST_DIR %>/const.js'
+        }]
       }
     },
     build_include: {
@@ -213,61 +244,7 @@ module.exports = (grunt) => {
   };
   //#endregion
   //#region config adjust
-  const setEnvironment = (env) => {
-    switch (env) {
-      case 'build':
-        return createEnv({});
-        break;
-      case 'dev':
-        return createEnv({
-          NODE_ENV: 'development'
-        });
-        break;
-      case 'test':
-        return createEnv({
-          NODE_ENV: 'test',
-          TEST_DIR: () => {
-            return pkg._scratch + "/tests";
-          },
-        });
-        break;
-      case 'test_legacy':
-        return createEnv({
-          NODE_ENV: 'test',
-          TEST_DIR: () => {
-            return pkg._scratch + "/legacy_tests";
-          },
-          JS_MIN: () => {
-            return pkg._jsLegacyFile.replace('.js', '.min.js');
-          },
-          JS_DIR: () => {
-            const s = pkg._jsLegacyFile;
-            return s.substr(0, s.lastIndexOf('/') + 1);
-          }
-        });
-        break;
-      case 'test_orig':
-        return createEnv({
-          NODE_ENV: 'test',
-          TEST_DIR: () => {
-            return pkg._scratch + "/orig_tests";
-          }
-        });
-        break;
-        case 'build_legacy':
-          return createEnv({
-            NODE_ENV: 'legacy',
-            SCRATCH_BUILD: () => {
-              return pkg._scratchLegacy.replace('{0}', pkg._scratch);
-            }
-          });
-          break;
-      default:
-        return createEnv({});
-        break;
-    }
-  };
-  const createEnv = (changes) => {
+  const calcEnvDef = () => {
     const newEnv = {};
     for (const key in envDefault) {
       if (envDefault.hasOwnProperty(key)) {
@@ -279,6 +256,12 @@ module.exports = (grunt) => {
         }
       }
     }
+    return newEnv;
+  }
+  const envDef = calcEnvDef();
+  
+  const createEnv = (changes) => {
+    const newEnv = {...envDef};
     for (const key in changes) {
       if (changes.hasOwnProperty(key)) {
         const cSetting = changes[key];
@@ -291,16 +274,62 @@ module.exports = (grunt) => {
     }
     return newEnv;
   };
-  config.env.build = setEnvironment('build');
-  config.env.test = setEnvironment('test');
-  config.env.dev = setEnvironment('dev');
-  config.env.test_legacy = setEnvironment('test_legacy');
-  config.env.test_orig = setEnvironment('test_orig');
-  config.env.build_legacy = setEnvironment('build_legacy');
+  config.env.build = createEnv({});
+  config.env.test = createEnv({
+    NODE_ENV: 'test',
+    TEST_DIR: () => {
+      return pkg._scratch + "/tests";
+    },
+  });
+  config.env.dev = createEnv({
+    NODE_ENV: 'development'
+  });
+  config.env.test_legacy = createEnv({
+    NODE_ENV: 'legacy',
+    PKG_JS: () => {
+      return pkg._jsLegacyFile;
+    },
+    TEST_DIR: () => {
+      return pkg._scratch + "/legacy_tests";
+    },
+    JS_MIN: () => {
+      return pkg._jsLegacyFile.replace('.js', '.min.js');
+    },
+    JS_DIR: () => {
+      const s = pkg._jsLegacyFile;
+      return s.substr(0, s.lastIndexOf('/') + 1);
+    }
+  });
+  config.env.test_orig = createEnv({
+    NODE_ENV: 'test',
+    TEST_DIR: () => {
+      return pkg._scratch + "/orig_tests";
+    }
+  });
+  config.env.build_legacy = createEnv({
+    NODE_ENV: 'legacy',
+    PKG_JS: () => {
+      return pkg._jsLegacyFile;
+    },
+    TEST_DIR: () => {
+      return pkg._scratch + "/legacy_tests";
+    },
+    JS_MIN: () => {
+      return pkg._jsLegacyFile.replace('.js', '.min.js');
+    },
+    JS_DIR: () => {
+      const s = pkg._jsLegacyFile;
+      return s.substr(0, s.lastIndexOf('/') + 1);
+    },
+    SCRATCH_BUILD: () => {
+      return pkg._scratchLegacy.replace('{0}', pkg._scratch);
+    }
+  });
   //
   //#endregion
   grunt.initConfig(config);
   // #endregion
+ 
   // #region grunt require and load npm task
   require('load-grunt-tasks')(grunt);
   grunt.loadNpmTasks('grunt-contrib-copy');
@@ -313,27 +342,19 @@ module.exports = (grunt) => {
   
   //#region RegisterTask Misc
   grunt.registerTask('loadconst', 'Load constants', function () {
-    grunt.config('PKG_MODULE', process.env.PKG_MODULE);
-    grunt.config('SCRATCH', process.env.SCRATCH);
-    grunt.config('OUT', process.env.OUT);
-    grunt.config('SCRATCH_BUILD', process.env.SCRATCH_BUILD);
-    grunt.config('PKG_TYPE', process.env.PKG_TYPE);
-    grunt.config('PKG_JS', process.env.PKG_JS);
-    grunt.config('JS_MIN', process.env.JS_MIN);
-    grunt.config('JS_DIR', process.env.JS_DIR);
-    grunt.config('PKG_JS_LEGACY', process.env.PKG_JS_LEGACY);
+    for (const key in envDefault) {
+      if (process.env.hasOwnProperty(key)) {
+        grunt.config(key, process.env[key]);
+      }
+    }
   });
 
   grunt.registerTask('log-const', 'Logging constants', function () {
-    grunt.log.writeln('NODE_ENV: ' + process.env.NODE_ENV);
-    grunt.log.writeln('PKG_MODULE: ' + process.env.PKG_MODULE);
-    grunt.log.writeln('SCRATCH: ' + process.env.SCRATCH);
-    grunt.log.writeln('SCRATCH_BUILD: ' + process.env.SCRATCH_BUILD);
-    grunt.log.writeln('PKG_TYPE: ' + process.env.PKG_TYPE);
-    grunt.log.writeln('PKG_JS: ' + process.env.PKG_JS);
-    grunt.log.writeln('JS_MIN: ' + process.env.JS_MIN);
-    grunt.log.writeln('JS_DIR: ' + process.env.JS_DIR);
-    grunt.log.writeln('PKG_JS_LEGACY: ' + process.env.PKG_JS_LEGACY);
+    for (const key in envDefault) {
+      if (process.env.hasOwnProperty(key)) {
+        grunt.log.writeln(key + ': ' + process.env[key].toString());
+      }
+    }
   });
 
   grunt.registerTask('loadconst_test', 'Load constants', function () {
@@ -388,33 +409,36 @@ module.exports = (grunt) => {
 //#endregion
 
 //#region original build test start
-  grunt.registerTask('testorig', [
+  grunt.registerTask('orig_test', [
     'env:test_orig',
     'loadconst',
     'loadconst_test',
-
     'clean:test',
     'copy:test_dir',
     'copy:test_js',
     'copy:test_us_en',
     "clean:test_html",
-    'replace:test_orig'
+    'clean:test_orig',
+    'replace:test_orig',
+    'replace:test_orig_flag',
+    'copy:test_old_css',
+    'copy:test_old_spelling'
   ]);
 
-  grunt.registerTask('startorig', [
+  grunt.registerTask('orig_start', [
     'shell:start_orig'
   ]);
 
-  grunt.registerTask('testorigs', [
-    'testorig',
-    'startorig',
+  grunt.registerTask('orig', [
+    'orig_test',
+    'orig_start',
 
   ]);
 
   //#endregion
 
   //#region Legacy Build test start
-  grunt.registerTask('buildl', [
+  grunt.registerTask('legacy_build', [
     'env:build_legacy',
     'loadconst',
     'log-const',
@@ -428,7 +452,7 @@ module.exports = (grunt) => {
     'terser:legacy'
   ]);
 
-  grunt.registerTask('testl', [
+  grunt.registerTask('legacy_test', [
     'env:test_legacy',
     'loadconst',
     'loadconst_test',
@@ -439,14 +463,53 @@ module.exports = (grunt) => {
     'copy:test_us_en'
   ]);
 
-  grunt.registerTask('startlegacy', [
+  grunt.registerTask('legacy_start', [
     'shell:start_legacy'
   ]);
-  grunt.registerTask('startlegacys', [
-    'buildl',
-    'testl',
-    'startlegacy'
+  grunt.registerTask('legacy', [
+    'legacy_build',
+    'legacy_test',
+    'legacy_start'
   ]);
 //#endregion
 
+//#region  help
+  grunt.registerTask('help', 'Help', function () {
+    const g = 'grunt';
+    const sep = '-';
+    const out = '"' + pkg._out + '"';
+    const scratch = '"' + pkg._scratch + '"';
+    const padding = 12;
+    const nlPadding = padding + 8;
+    const jsEs = '"' + pkg._jsEsFile + '"';
+    const jsEsMin = '"' + pkg._jsEsFile.replace('.js', '.min.js') + '"';
+    const jsLegacy = '"' + pkg._jsLegacyFile + '"';
+    const jsLegacyMin = '"' + pkg._jsLegacyFile.replace('.js', '.min.js') + '"';
+
+    grunt.log.writeln(g, 'build'.padEnd(padding), sep, 'Builds the project and outputs to', out);
+    grunt.log.writeln(''.padStart(nlPadding),'Also compiles', jsEs, 'and', jsEsMin);
+    
+    grunt.log.writeln(g, 'test'.padEnd(padding), sep, 'Compiles test harness in', scratch, 'sub directory from last build');
+    grunt.log.writeln(g, 'start'.padEnd(padding), sep, 'Starts a local webserver and loads the test harness into browser');
+    grunt.log.writeln(g, 'tests'.padEnd(padding), sep, 'Compiles and runs test (build, test, start)');
+
+    grunt.log.writeln(g, 'legacy_build'.padEnd(padding), sep, 'Builds the project in legacy mode.');
+    grunt.log.writeln(''.padStart(nlPadding),'Legacy mode compiles necessary code to run in older browsers. Much bigger output file.');
+    grunt.log.writeln(''.padStart(nlPadding),'Compiles', jsLegacy, 'and', jsLegacyMin);
+    
+    grunt.log.writeln(g, 'legacy_start'.padEnd(padding), sep, 'Starts a local webserver and loads the legacy test harness into browser');
+    grunt.log.writeln(g, 'legacy'.padEnd(padding), sep, 'Compiles and runs legacy test (legacy_build, legacy_start)');
+
+    grunt.log.writeln(g, "orig_test".padEnd(padding), sep, 'Compiles test harness that loads Typo.js from original Git fork in', scratch, 'sub directory');
+    grunt.log.writeln(g, 'orig_start'.padEnd(padding), sep, 'Starts a local webserver and loads the test harness for original Typo.js into browser');
+    grunt.log.writeln(g, 'orig'.padEnd(padding), sep, 'Compiles and runs orig test (orig_test, orig_start)');
+
+    
+    // for unknown reason grunt remoes _ (underscore) on second last line.
+    // this little hack gets around it
+    grunt.log.writeln('');
+    grunt.log.writeln('');
+
+  });
+//#endregion
 };

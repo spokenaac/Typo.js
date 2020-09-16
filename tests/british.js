@@ -1,21 +1,41 @@
 function run() {
 
-	let promiseAffData = fetchAndDecode(geturl(DIC_DIR + "/en_GB/en_GB.aff"), 'text');
-	let promiseWordData = fetchAndDecode(geturl(DIC_DIR + "/en_GB/en_GB.dic"), 'text');
+	let dic = 'en_GB';
+	let promiseAffData = fetchTextAff(dic);
+	let promiseWordData = fetchTextDic(dic);
 	var affData = '';
 	var wordData = '';
 	Promise.all([promiseAffData, promiseWordData]).then(values => {
 		affData = values[0];
 		wordData = values[1];
-		var hashDict = new Typo("en_GB", affData, wordData);
+		if (TEST_ORIG === true) {
+			new Typo(dic, affData, wordData)
+				.ready.then(dict => testDictionary(dict))
+				.catch(err => QUnit.pushFailure(err));
 
-		testDictionary(hashDict);
+			new Typo(dic)
+				.ready.then(dict => testDictionary(dict))
+				.catch(err => QUnit.pushFailure(err));
 
-		var dict = new Typo("en_GB", null, null, {
-			dictionaryPath: DIC_DIR, asyncLoad: true, loadedCallback: function () {
-				testDictionary(dict);
-			}
-		});
+			new Typo(dic, null, null, {
+				dictionaryPath: DIC_DIR, loadedCallback: function (err, dict) {
+					if (err) {
+						QUnit.pushFailure(err);
+					} else {
+						testDictionary(dict);
+					}
+				}
+			});
+		} else {
+			var hashDict = new Typo(dic, affData, wordData);
+			testDictionary(hashDict);
+			var dict = new Typo(dic, null, null, {
+				dictionaryPath: DIC_DIR, asyncLoad: true, loadedCallback: function () {
+					testDictionary(dict);
+				}
+			});
+		}
+
 	});
 }
 
