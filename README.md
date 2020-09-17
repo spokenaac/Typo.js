@@ -29,7 +29,7 @@ Type implements a Ready pattern that returns a [Promise](https://developer.mozil
 var Typo = require('typo-js-ts').Typo;
 
 var dict = new Typo("en_US");
-dict.Ready.then(()=>{
+dict.ready.then(()=>{
   // Promise that dictionary is loaded
   // do work
   let spellSuggest = dict.suggest("speling");
@@ -52,7 +52,7 @@ or
 var Typo = require('typo-js-ts').Typo;
 
 new Typo("en_US")
-  .Ready.then(dictionary => {
+  .ready.then(dictionary => {
     // Promise that dictionary is loaded
     // do worl
     // test if mispelled is the corect spelling for en_US
@@ -114,7 +114,7 @@ var Typo = require('typo-js-ts').Typo;
 var dictionary = new Typo("en_US", null, null, {
   dictionaryPath: "hunspell/dictionaries"
   });
-dictionary.Ready.then(()=>{
+dictionary.ready.then(()=>{
   // Promise that dictionary is loaded
   // do work
   console.log(dict.check("1st")); // true

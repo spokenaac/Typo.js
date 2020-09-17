@@ -9,7 +9,7 @@
   "_meta_generator": "Typo-js-ts",
   "_sourceLink": "https://github.com/Amourspirit/Typo.js",
   "name": "typo-js-ts",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Typo.js is a JavaScript spellchecker that uses Hunspell-style dictionaries.",
   "main": "dist/commonjs/typo.js",
   "module": "dist/es/typo.js",
