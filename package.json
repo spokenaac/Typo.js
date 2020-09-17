@@ -7,7 +7,7 @@
   "_scratchLegacy": "{0}/legacy",
   "_out": "dist",
   "name": "typo-js-ts",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Typo.js is a JavaScript spellchecker that uses Hunspell-style dictionaries.",
   "main": "dist/commonjs/typo.js",
   "module": "dist/es/typo.js",
@@ -20,6 +20,7 @@
     "lite": "lite-server -c './tests/configs/test.config.json'",
     "lite_orig": "lite-server -c './tests/configs/testorig.config.json'",
     "lite_legacy": "lite-server -c './tests/configs/testlegacy.config.json'",
+    "lite_site": "lite-server -c './site/config/site.config.json'",
     "help": "grunt help"
   },
   "repository": {

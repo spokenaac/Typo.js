@@ -61,7 +61,7 @@ new Typo("en_US")
 or using callback
 
 ````javascript
-new Typo('en_US, null, null, {
+new Typo("en_US", null, null, {
   loadedCallback: function (err, dict) {
     if(err) {
       console.error(err);
@@ -150,6 +150,10 @@ var array_of_suggestions = dictionary.suggest("mispeling");
 * KEEPCASE
 * NOSUGGEST
 * NEEDAFFIX
+
+## Demo
+
+There's a live demo of Typo.js [here](https://amourspirit.github.io/Typo.js/spell.html).
 
 ## Licensing
 

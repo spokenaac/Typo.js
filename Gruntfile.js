@@ -55,6 +55,7 @@ module.exports = (grunt) => {
 
     //#region dynamic
     NODE_ENV: 'production',
+    WORK_DIR: "",
     SCRATCH: () => {
       return pkg._scratch;
     },
@@ -70,17 +71,18 @@ module.exports = (grunt) => {
     JS_DIR: () => {
       const s = pkg._jsEsFile;
       return s.substr(0, s.lastIndexOf('/') + 1);
-    }
+    }    
     //#endregion
   };
   //#endregion
 
   // #region grunt init config
-  //#region init Optoins
+  //#region init Options
   const config = {
     // pkg: packageData,
     env: {
       dev: {},
+      site: {},
       build: {},
       test: {},
       test_legacy: {},
@@ -91,12 +93,13 @@ module.exports = (grunt) => {
       scratch: ['<%= SCRATCH %>'],
       out: ['<%= OUT %>'],
       js: ['<%= JS_DIR %>/*.js'],
-      test: ['<%= TEST_DIR %>'],
-      test_html: ['<%= TEST_DIR %>/*.html'],
+      test: ['<%= WORK_DIR %>'],
+      site: ['<%= SCRATCH %>/site'],
+      test_html: ['<%= WORK_DIR %>/*.html'],
       test_orig: [
-        '<%= TEST_DIR %>/tests.css',
-        '<%= TEST_DIR %>/const.js',
-        '<%= TEST_DIR %>/spelling.html'
+        '<%= WORK_DIR %>/tests.css',
+        '<%= WORK_DIR %>/const.js',
+        '<%= WORK_DIR %>/spelling.html'
       ]
     },
 
@@ -128,9 +131,9 @@ module.exports = (grunt) => {
       start: 'npm run  lite',
       start_orig: 'npm run  lite_orig',
       start_legacy: 'npm run  lite_legacy',
+      start_site: 'npm run lite_site',
       typecheck: 'tsc --noEmit'
     },
-
     copy: {
       d: {
         files: [{
@@ -143,15 +146,39 @@ module.exports = (grunt) => {
           expand: true,
           cwd: 'tests/',
           src: '**/*',
-          dest: '<%= TEST_DIR %>'
+          dest: '<%= WORK_DIR %>'
         }]
       },
-      test_us_en: {
+      typo_us_en: {
         files: [{
           expand: true,
           cwd: 'typo/dictionaries/en_US/',
-          src: '**/*',
-          dest: '<%= TEST_DIR %>/dictionaries/en_US/'
+          src: '**/*+(.aff|.dic)',
+          dest: '<%= WORK_DIR %>/dictionaries/en_US/'
+        }]
+      },
+      test_dict: {
+        files: [{
+          expand: true,
+          cwd: 'tests/dictionaries/',
+          src: '**/**/*+(.aff|.dic)',
+          dest: '<%= WORK_DIR %>/dictionaries/'
+        }]
+      },
+      site_files: {
+        files: [{
+          expand: true,
+          cwd: 'site',
+          src: '**/**/*+(.html|.css|.js)',
+          dest: '<%= WORK_DIR %>/'
+        }]
+      },
+      js_legacy_min: {
+        files: [{
+          expand: true,
+          cwd: '<%= JS_DIR %>/',
+          src: '**/*.min*',
+          dest: '<%= WORK_DIR %>/js/'
         }]
       },
       test_js: {
@@ -159,7 +186,7 @@ module.exports = (grunt) => {
           expand: true,
           cwd: '<%= JS_DIR %>',
           src: '**/*',
-          dest: '<%= TEST_DIR %>/js'
+          dest: '<%= WORK_DIR %>/js'
         }]
       },
       final: {
@@ -171,13 +198,13 @@ module.exports = (grunt) => {
       test_old_css: {
         files: [{
           src: 'tests/tests.orig.css',
-          dest: '<%= TEST_DIR %>/tests.css'
+          dest: '<%= WORK_DIR %>/tests.css'
         }]
       },
       test_old_spelling: {
         files: [{
           src: 'tests/spelling.orig.html',
-          dest: '<%= TEST_DIR %>/spelling.html'
+          dest: '<%= WORK_DIR %>/spelling.html'
         }]
       }
     },
@@ -213,7 +240,7 @@ module.exports = (grunt) => {
           expand: true,
           cwd: 'tests/',
           src: '**/*html',
-          dest: '<%= TEST_DIR %>'
+          dest: '<%= WORK_DIR %>'
         }]
       },
       test_orig_flag: {
@@ -227,7 +254,7 @@ module.exports = (grunt) => {
         },
         files: [{
           src: 'tests/const.js',
-          dest: '<%= TEST_DIR %>/const.js'
+          dest: '<%= WORK_DIR %>/const.js'
         }]
       }
     },
@@ -277,19 +304,25 @@ module.exports = (grunt) => {
   config.env.build = createEnv({});
   config.env.test = createEnv({
     NODE_ENV: 'test',
-    TEST_DIR: () => {
+    WORK_DIR: () => {
       return pkg._scratch + "/tests";
     },
   });
   config.env.dev = createEnv({
     NODE_ENV: 'development'
   });
+  config.env.site = createEnv({
+    NODE_ENV: 'site',
+    WORK_DIR: () => {
+      return pkg._scratch + "/site";
+    }
+  });
   config.env.test_legacy = createEnv({
     NODE_ENV: 'legacy',
     PKG_JS: () => {
       return pkg._jsLegacyFile;
     },
-    TEST_DIR: () => {
+    WORK_DIR: () => {
       return pkg._scratch + "/legacy_tests";
     },
     JS_MIN: () => {
@@ -302,7 +335,7 @@ module.exports = (grunt) => {
   });
   config.env.test_orig = createEnv({
     NODE_ENV: 'test',
-    TEST_DIR: () => {
+    WORK_DIR: () => {
       return pkg._scratch + "/orig_tests";
     }
   });
@@ -311,7 +344,7 @@ module.exports = (grunt) => {
     PKG_JS: () => {
       return pkg._jsLegacyFile;
     },
-    TEST_DIR: () => {
+    WORK_DIR: () => {
       return pkg._scratch + "/legacy_tests";
     },
     JS_MIN: () => {
@@ -357,11 +390,7 @@ module.exports = (grunt) => {
     }
   });
 
-  grunt.registerTask('loadconst_test', 'Load constants', function () {
-    grunt.config('TEST_DIR', process.env.TEST_DIR);
-  });
-
-  grunt.registerTask('default', [
+   grunt.registerTask('default', [
     'build'
   ]);
   grunt.registerTask('envcheck', ['version_bump:build', 'env:dev', 'devtest']);
@@ -391,12 +420,11 @@ module.exports = (grunt) => {
   grunt.registerTask('test', [
     'env:test',
     'loadconst',
-    'loadconst_test',
     'log-const',
     'clean:test',
     'copy:test_dir',
     'copy:test_js',
-    'copy:test_us_en'
+    'copy:typo_us_en'
   ]);
 
   grunt.registerTask('start', [
@@ -412,11 +440,10 @@ module.exports = (grunt) => {
   grunt.registerTask('orig_test', [
     'env:test_orig',
     'loadconst',
-    'loadconst_test',
     'clean:test',
     'copy:test_dir',
     'copy:test_js',
-    'copy:test_us_en',
+    'copy:typo_us_en',
     "clean:test_html",
     'clean:test_orig',
     'replace:test_orig',
@@ -455,12 +482,11 @@ module.exports = (grunt) => {
   grunt.registerTask('legacy_test', [
     'env:test_legacy',
     'loadconst',
-    'loadconst_test',
     'log-const',
     'clean:test',
     'copy:test_dir',
     'copy:test_js',
-    'copy:test_us_en'
+    'copy:typo_us_en'
   ]);
 
   grunt.registerTask('legacy_start', [
@@ -470,6 +496,25 @@ module.exports = (grunt) => {
     'legacy_build',
     'legacy_test',
     'legacy_start'
+  ]);
+//#endregion
+
+//#region Site
+  grunt.registerTask('site_build', [
+    'env:site',
+    'loadconst',
+    'log-const',
+    'clean:site',
+    'copy:typo_us_en',
+    'copy:test_dict',
+    'copy:js_legacy_min',
+    'copy:site_files'
+  ]);
+  grunt.registerTask('site_start', [
+    'env:site',
+    'loadconst',
+    'log-const',
+    'shell:start_site'
   ]);
 //#endregion
 
@@ -485,6 +530,7 @@ module.exports = (grunt) => {
     const jsEsMin = '"' + pkg._jsEsFile.replace('.js', '.min.js') + '"';
     const jsLegacy = '"' + pkg._jsLegacyFile + '"';
     const jsLegacyMin = '"' + pkg._jsLegacyFile.replace('.js', '.min.js') + '"';
+    const siteOut = '"' + pkg._scratch + '/site"';
 
     grunt.log.writeln(g, 'build'.padEnd(padding), sep, 'Builds the project and outputs to', out);
     grunt.log.writeln(''.padStart(nlPadding),'Also compiles', jsEs, 'and', jsEsMin);
@@ -504,10 +550,13 @@ module.exports = (grunt) => {
     grunt.log.writeln(g, 'orig_start'.padEnd(padding), sep, 'Starts a local webserver and loads the test harness for original Typo.js into browser');
     grunt.log.writeln(g, 'orig'.padEnd(padding), sep, 'Compiles and runs orig test (orig_test, orig_start)');
 
+    grunt.log.writeln(g, "site_build".padEnd(padding), sep, 'Generate a site that can spell check. Outputs to ', siteOut, 'directory');
+    grunt.log.writeln(g, 'site_start'.padEnd(padding), sep, 'Starts a local webserver and loads the site for spell checking.');
+    grunt.log.writeln(''.padStart(nlPadding), 'Site is located in ', siteOut);
     
-    // for unknown reason grunt remoes _ (underscore) on second last line.
+    // for unknown reason sometime terminal removes _ (underscore) on second last line.
     // this little hack gets around it
-    grunt.log.writeln('');
+    // grunt.log.writeln('');
     grunt.log.writeln('');
 
   });

@@ -1,0 +1,10 @@
+{
+  "port": 10020,
+    "files": [
+      "./scratch/site/**/*.{html,htm,css,js,json}"
+    ],
+      "server": {
+    "baseDir": "./scratch/site",
+    "index": "spell.html"
+  }
+}
