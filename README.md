@@ -70,12 +70,12 @@ or using callback
 var Typo = require('typo-js-ts').Typo;
 
 new Typo("en_US", null, null, {
-  loadedCallback: function (err, dict) {
-    if(err) {
+  loadedCallback: function (err, dict) { 
+    if (err) {
       console.error(err);
       return;
     }
-    let spellSuggest = dict.suggest("spitting")
+    let spellSuggest = dict.suggest("spitting");
     console.log(spellSuggest);
     // Correctly spelled words receive no suggestions.
     // output [ ]
@@ -83,7 +83,8 @@ new Typo("en_US", null, null, {
     spellSuggest = dict.suggest("speling", 1);
     console.log(dict.check("Alex")); // true
     console.log(dict.check("alex")); // false
-);
+  }
+});
 ````
 
 To use **Typo.js** in a Chrome extension, simply include the *typo.js* file in your extension's background page, and then initialize the dictionary like so:
@@ -111,10 +112,10 @@ if your dictionaries are stored in a different path then this can be pass to **T
 ```javascript
 var Typo = require('typo-js-ts').Typo;
 
-var dictionary = new Typo("en_US", null, null, {
+var dict = new Typo("en_US", null, null, {
   dictionaryPath: "hunspell/dictionaries"
-  });
-dictionary.ready.then(()=>{
+});
+dict.ready.then(() => {
   // Promise that dictionary is loaded
   // do work
   console.log(dict.check("1st")); // true
@@ -167,7 +168,18 @@ var array_of_suggestions = dictionary.suggest("mispeling");
 
 ## Demo
 
-There's a live demo of Typo.js [here](https://amourspirit.github.io/Typo.js/spell.html).
+Check out live [demo](https://amourspirit.github.io/Typo.js/spell.html) of Typo.js.
+
+Also try on [RunKit + NPM](https://npm.runkit.com/typo-js-ts)
+
+## JS Directory
+
+The JS Directory contains compiled JavaScript of this project. This files can be used directly in your web page to load **Typo.js**  
+See [Js Readme](https://github.com/Amourspirit/Typo.js/tree/master/js#readme) for more information.
+
+## Compiling Source
+
+Run `grunt help` in terminal to get a list of commands that are used to build this project.
 
 ## Licensing
 

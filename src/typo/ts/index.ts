@@ -67,7 +67,7 @@ interface IMemoized {
 interface IDictionaryTable {
 	[key: string]: string[][] | null | undefined
 }
-// BUILD_INCLUDE("typo/legacy/imports.js")
+// BUILD_INCLUDE("src/typo/legacy/imports.js")
 /**
  * Typo is a JavaScript implementation of a spellchecker using hunspell-style
  * dictionaries.

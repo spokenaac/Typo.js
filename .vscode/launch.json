@@ -7,6 +7,16 @@
     {
       "type": "node",
       "request": "launch",
+      "name": "Current Js File",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${file}"
+    },
+    {
+      "type": "node",
+      "request": "launch",
       "name": "Grunt Build",
       "console": "integratedTerminal",
       "args": ["build"],

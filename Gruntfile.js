@@ -11,7 +11,7 @@ module.exports = (grunt) => {
     const major = s.replace(/v?(?:(\d+)\.)?(?:(\d+)\.)?(\*|\d+)/, '$1');
     return parseInt(major, 10);
   }
-  const pkg = grunt.file.readJSON('package.json');
+  
   const nodeMajor = getNodeMajor();
   let isES6Plus = false;
   try {
@@ -24,6 +24,23 @@ module.exports = (grunt) => {
   } catch (err) {
     grunt.log.writeln("ES6 not supported :(");
   }
+  //#region Setup Methods
+  const getPkg = () => {
+    const p = grunt.file.readJSON('package.json');
+    const extendedPkg = {...p};
+    extendedPkg.PKG_SRC_DIR_TYPO = p._sourceDirTypo.replace('{0}', p._sourceDir);
+    extendedPkg.PKG_SRC_DIR_README = p._sourceDirReadme.replace('{0}', p._sourceDir);
+    extendedPkg.PKG_SRC_DIR_SITE = p._sourceDirSite.replace('{0}', p._sourceDir);
+    extendedPkg.PKG_SRC_DIR_TEST = p._sourceDirTest.replace('{0}', p._sourceDir);
+    extendedPkg.PKG_JS_LEGACY = p._jsFileLegacy.replace('{0}', p._jsDir);
+    extendedPkg.PKG_JS = p._jsFileEs.replace('{0}', p._jsDir);
+    extendedPkg.JS_DIR = extendedPkg.PKG_JS.substr(0, extendedPkg.PKG_JS.lastIndexOf('/'))
+    extendedPkg.JS_MIN = extendedPkg.PKG_JS.replace('.js', '.min.js');
+    
+    return extendedPkg;
+  }
+  //#endregion
+  const pkg = getPkg();
   //#endregion
  
   //#region Envrioment setting Default
@@ -32,6 +49,24 @@ module.exports = (grunt) => {
     PKG_MODULE: () => {
       return pkg.module;
     },
+    PKG_SRC_DIR: () => {
+      return pkg._sourceDir;
+    },
+    PKG_JS_DIR: () => {
+      return pkg._jsDir;
+    },
+    PKG_SRC_DIR_TYPO: () => {
+      return pkg.PKG_SRC_DIR_TYPO;
+    },
+    PKG_SRC_DIR_README: () => {
+      return pkg.PKG_SRC_DIR_README;
+    },
+    PKG_SRC_DIR_SITE: () => {
+      return pkg.PKG_SRC_DIR_SITE;
+    },
+    PKG_SRC_DIR_TEST: () => {
+      return pkg.PKG_SRC_DIR_TEST;
+    },
     PKG_TYPE: () => {
       return pkg.typings;
     },
@@ -39,17 +74,16 @@ module.exports = (grunt) => {
       return pkg._out;
     },
     PKG_JS_LEGACY: () => {
-      return pkg._jsLegacyFile;
+      return pkg.PKG_JS_LEGACY;
     },
     PKG_JS: () => {
-      return pkg._jsEsFile;
+      return pkg.PKG_JS;
     },
     JS_MIN: () => {
-      return pkg._jsEsFile.replace('.js', '.min.js');
+      return pkg.JS_MIN;
     },
     JS_DIR: () => {
-      const s = pkg._jsEsFile;
-      return s.substr(0, s.lastIndexOf('/'));
+      return pkg.JS_DIR;
     },
     //#endregion
 
@@ -66,14 +100,13 @@ module.exports = (grunt) => {
       return pkg._scratchBuild.replace('{0}', pkg._scratch);
     },
     PKG_JS: () => {
-      return pkg._jsEsFile;
+      return pkg.PKG_JS;
     },
     JS_MIN: () => {
-      return pkg._jsEsFile.replace('.js', '.min.js');
+      return pkg.JS_MIN;
     },
     JS_DIR: () => {
-      const s = pkg._jsEsFile;
-      return s.substr(0, s.lastIndexOf('/'));
+      return pkg.JS_DIR;
     }    
     //#endregion
   };
@@ -97,9 +130,11 @@ module.exports = (grunt) => {
       scratch: ['<%= SCRATCH %>'],
       out: ['<%= OUT %>'],
       js: ['<%= JS_DIR %>/*.js'],
+      js_md: ['<%= PKG_JS_DIR %>/*.md'],
       test: ['<%= WORK_DIR %>'],
       site: ['<%= SCRATCH %>/site'],
       test_html: ['<%= WORK_DIR %>/*.html'],
+      tonic: ['./tonic-example.js'],
       test_orig: [
         '<%= WORK_DIR %>/tests.css',
         '<%= WORK_DIR %>/const.js',
@@ -111,7 +146,7 @@ module.exports = (grunt) => {
       options: {
         configuration: 'tslint.json'
       },
-      plugin: ['typo/**/*.ts']
+      plugin: ['<%= PKG_SRC_DIR_TYPO %>/**/*.ts']
     },
     remove_comments: {
       js: {
@@ -136,19 +171,13 @@ module.exports = (grunt) => {
       start_orig: 'npm run  lite_orig',
       start_legacy: 'npm run  lite_legacy',
       start_site: 'npm run lite_site',
-      typecheck: 'tsc --noEmit'
+      typecheck: 'tsc --noEmit',
     },
     copy: {
-      d: {
-        files: [{
-          src: './lib/main.d.ts',
-          dest: './index.d.ts'
-        }]
-      },
       test_dir: {
         files: [{
           expand: true,
-          cwd: 'tests/',
+          cwd: '<%= PKG_SRC_DIR_TEST %>/',
           src: '**/*',
           dest: '<%= WORK_DIR %>'
         }]
@@ -156,7 +185,7 @@ module.exports = (grunt) => {
       typo_us_en: {
         files: [{
           expand: true,
-          cwd: 'typo/dictionaries/en_US/',
+          cwd: '<%= PKG_SRC_DIR_TYPO %>/dictionaries/en_US/',
           src: '**/*+(.aff|.dic)',
           dest: '<%= WORK_DIR %>/dictionaries/en_US/'
         }]
@@ -164,7 +193,7 @@ module.exports = (grunt) => {
       test_dict: {
         files: [{
           expand: true,
-          cwd: 'tests/dictionaries/',
+          cwd: '<%= PKG_SRC_DIR_TEST %>/dictionaries/',
           src: '**/**/*+(.aff|.dic)',
           dest: '<%= WORK_DIR %>/dictionaries/'
         }]
@@ -172,7 +201,7 @@ module.exports = (grunt) => {
       site_files: {
         files: [{
           expand: true,
-          cwd: 'site',
+          cwd: '<%= PKG_SRC_DIR_SITE %>',
           src: '**/**/*+(.css|.js|.ico)',
           dest: '<%= WORK_DIR %>/'
         }]
@@ -183,6 +212,12 @@ module.exports = (grunt) => {
           cwd: '<%= JS_DIR %>/',
           src: '**/*.min*',
           dest: '<%= WORK_DIR %>/js/'
+        }]
+      },
+      js_readme: {
+        files: [{
+          src: '<%= PKG_SRC_DIR_README %>/js.txt',
+          dest: '<%= PKG_JS_DIR %>/Readme.md'
         }]
       },
       test_js: {
@@ -201,13 +236,13 @@ module.exports = (grunt) => {
       },
       test_old_css: {
         files: [{
-          src: 'tests/tests.orig.css',
+          src: '<%= PKG_SRC_DIR_TEST %>/tests.orig.css',
           dest: '<%= WORK_DIR %>/tests.css'
         }]
       },
       test_old_spelling: {
         files: [{
-          src: 'tests/spelling.orig.html',
+          src: '<%= PKG_SRC_DIR_TEST %>/spelling.orig.html',
           dest: '<%= WORK_DIR %>/spelling.html'
         }]
       }
@@ -263,7 +298,7 @@ module.exports = (grunt) => {
         },
         files: [
           { expand: true,
-            cwd: 'site/',
+            cwd: '<%= PKG_SRC_DIR_SITE %>/',
             src: ['**/*.html'],
             dest: '<%= WORK_DIR %>/'
           }
@@ -280,7 +315,7 @@ module.exports = (grunt) => {
         },
         files: [{
           expand: true,
-          cwd: 'tests/',
+          cwd: '<%= PKG_SRC_DIR_TEST %>/',
           src: '**/*html',
           dest: '<%= WORK_DIR %>'
         }]
@@ -295,7 +330,7 @@ module.exports = (grunt) => {
           ]
         },
         files: [{
-          src: 'tests/const.js',
+          src: '<%= PKG_SRC_DIR_TEST %>/const.js',
           dest: '<%= WORK_DIR %>/const.js'
         }]
       }
@@ -362,16 +397,16 @@ module.exports = (grunt) => {
   config.env.test_legacy = createEnv({
     NODE_ENV: 'legacy',
     PKG_JS: () => {
-      return pkg._jsLegacyFile;
+      return pkg.PKG_JS_LEGACY.replace('{0}', pkg._jsDir);
     },
     WORK_DIR: () => {
       return pkg._scratch + "/legacy_tests";
     },
     JS_MIN: () => {
-      return pkg._jsLegacyFile.replace('.js', '.min.js');
+      return pkg.PKG_JS_LEGACY.replace('.js', '.min.js');
     },
     JS_DIR: () => {
-      const s = pkg._jsLegacyFile;
+      const s = pkg.PKG_JS_LEGACY.replace('{0}', pkg._jsDir);
       return s.substr(0, s.lastIndexOf('/'));
     }
   });
@@ -390,16 +425,17 @@ module.exports = (grunt) => {
   config.env.build_legacy = createEnv({
     NODE_ENV: 'legacy',
     PKG_JS: () => {
-      return pkg._jsLegacyFile;
+      return pkg.PKG_JS_LEGACY.replace('{0}', pkg._jsDir);
     },
     WORK_DIR: () => {
       return pkg._scratch + "/legacy_tests";
     },
     JS_MIN: () => {
-      return pkg._jsLegacyFile.replace('.js', '.min.js');
+      const s = pkg.PKG_JS_LEGACY.replace('{0}', pkg._jsDir);
+      return s.replace('.js', '.min.js');
     },
     JS_DIR: () => {
-      const s = pkg._jsLegacyFile;
+      const s = pkg.PKG_JS_LEGACY.replace('{0}', pkg._jsDir);
       return s.substr(0, s.lastIndexOf('/'));
     },
     SCRATCH_BUILD: () => {
@@ -457,6 +493,8 @@ module.exports = (grunt) => {
     'clean:scratch',
     'clean:out',
     'clean:js',
+    'clean:js_md',
+    'clean:tonic',
     'tslint',
     'shell:tsc_es',
     'shell:rollup',
@@ -464,6 +502,7 @@ module.exports = (grunt) => {
     'remove_comments:js',
     'copy:final',
     'copy:typo_us_en',
+    'copy:js_readme',
     'env:dist',
     'loadconst',
     'log-const',
@@ -572,6 +611,14 @@ module.exports = (grunt) => {
   ]);
 //#endregion
 
+//#region  ALL
+  grunt.registerTask('build_all', [
+    'build',
+    'legacy_build',
+    'site_build'
+  ]);
+//#endregion
+
 //#region  help
   grunt.registerTask('help', 'Help', function () {
     const g = 'grunt';
@@ -580,10 +627,10 @@ module.exports = (grunt) => {
     const scratch = '"' + pkg._scratch + '"';
     const padding = 12;
     const nlPadding = padding + 8;
-    const jsEs = '"' + pkg._jsEsFile + '"';
-    const jsEsMin = '"' + pkg._jsEsFile.replace('.js', '.min.js') + '"';
-    const jsLegacy = '"' + pkg._jsLegacyFile + '"';
-    const jsLegacyMin = '"' + pkg._jsLegacyFile.replace('.js', '.min.js') + '"';
+    const jsEs = '"' + pkg.PKG_JS + '"';
+    const jsEsMin = '"' + pkg.JS_MIN + '"';
+    const jsLegacy = '"' + pkg._jsFileLegacy.replace('{0}', pkg._jsDir); + '"';
+    const jsLegacyMin = '"' + jsLegacy.replace('.js', '.min.js') + '"';
     const siteOut = '"' + pkg._scratch + '/site"';
 
     grunt.log.writeln(g, 'build'.padEnd(padding), sep, 'Builds the project and outputs to', out);
@@ -607,6 +654,8 @@ module.exports = (grunt) => {
     grunt.log.writeln(g, "site_build".padEnd(padding), sep, 'Generate a site that can spell check. Outputs to ', siteOut, 'directory');
     grunt.log.writeln(g, 'site_start'.padEnd(padding), sep, 'Starts a local webserver and loads the site for spell checking.');
     grunt.log.writeln(''.padStart(nlPadding), 'Site is located in ', siteOut);
+
+    grunt.log.writeln(g, "build_all".padEnd(padding), sep, 'Runs all build task (build, legacy_build, site_build)');
     
     // for unknown reason sometime terminal removes _ (underscore) on second last line.
     // this little hack gets around it

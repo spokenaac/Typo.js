@@ -5,7 +5,7 @@ import pkg from './package.json';
 const scratchBuild = pkg._scratchBuild.replace('{0}', pkg._scratch);
 const inputIife = scratchBuild +'/typo.js';
 const inputCjs = scratchBuild + '/index.js';
-const esOut = pkg._jsEsFile; // js/es/typo.js
+const esOut = pkg._jsFileEs.replace('{0}', pkg._jsDir); // js/es/typo.js
 const external = (id) => !id.startsWith('.') && !id.startsWith('/');
 const getBabelOptions = (useESModules = true) => ({
   extensions: ['.js'],

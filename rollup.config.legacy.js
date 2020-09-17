@@ -5,7 +5,7 @@ import pkg from './package.json';
 
 const scratchBuild = pkg._scratchLegacy.replace('{0}', pkg._scratch);
 const input = scratchBuild + '/typo.js';
-const out = pkg._jsLegacyFile;
+const out = pkg._jsFileLegacy.replace('{0}', pkg._jsDir);
 const getBabelOptions = (useESModules = true) => ({
   babelHelpers: 'bundled',
   exclude: 'node_modules/**', // only transpile our source code
