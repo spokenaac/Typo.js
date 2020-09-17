@@ -6,8 +6,10 @@
   "_scratchBuild": "{0}/main",
   "_scratchLegacy": "{0}/legacy",
   "_out": "dist",
+  "_meta_generator": "Typo-js-ts",
+  "_sourceLink": "https://github.com/Amourspirit/Typo.js",
   "name": "typo-js-ts",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Typo.js is a JavaScript spellchecker that uses Hunspell-style dictionaries.",
   "main": "dist/commonjs/typo.js",
   "module": "dist/es/typo.js",
@@ -72,9 +74,10 @@
     "load-grunt-tasks": "^5.1.0",
     "node-fetch": "^2.6.1",
     "regenerator-runtime": "^0.13.7",
-    "rollup": "^2.26.11",
+    "rollup": "^2.27.0",
     "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^4.0.2"
-  }
+  },
+  "tonicExample": "var Typo = require('typo-js-ts').Typo; new Typo('en_US').ready.then(dict => {console.log(dict.check('mispelled'));});"
 }

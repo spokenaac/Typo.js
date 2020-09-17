@@ -49,14 +49,17 @@ module.exports = (grunt) => {
     },
     JS_DIR: () => {
       const s = pkg._jsEsFile;
-      return s.substr(0, s.lastIndexOf('/') + 1);
+      return s.substr(0, s.lastIndexOf('/'));
     },
     //#endregion
 
     //#region dynamic
     NODE_ENV: 'production',
-    WORK_DIR: "",
+    WORK_DIR: () => {
+      return pkg._moduleDir;
+    },
     SCRATCH: () => {
+
       return pkg._scratch;
     },
     SCRATCH_BUILD: () => {
@@ -70,7 +73,7 @@ module.exports = (grunt) => {
     },
     JS_DIR: () => {
       const s = pkg._jsEsFile;
-      return s.substr(0, s.lastIndexOf('/') + 1);
+      return s.substr(0, s.lastIndexOf('/'));
     }    
     //#endregion
   };
@@ -87,7 +90,8 @@ module.exports = (grunt) => {
       test: {},
       test_legacy: {},
       test_orig: {},
-      build_legacy: {}
+      build_legacy: {},
+      dist: {}
     },
     clean: {
       scratch: ['<%= SCRATCH %>'],
@@ -169,7 +173,7 @@ module.exports = (grunt) => {
         files: [{
           expand: true,
           cwd: 'site',
-          src: '**/**/*+(.html|.css|.js)',
+          src: '**/**/*+(.css|.js|.ico)',
           dest: '<%= WORK_DIR %>/'
         }]
       },
@@ -184,7 +188,7 @@ module.exports = (grunt) => {
       test_js: {
         files: [{
           expand: true,
-          cwd: '<%= JS_DIR %>',
+          cwd: '<%= JS_DIR %>/',
           src: '**/*',
           dest: '<%= WORK_DIR %>/js'
         }]
@@ -227,6 +231,44 @@ module.exports = (grunt) => {
       }
     },
     replace: {
+      html: {
+        options: {
+          patterns: [
+            {
+              match: '[description]',
+              replacement: function () {
+                return pkg.description;
+              },
+            },
+
+            {
+              match: '[metaname]',
+              replacement: function () {
+                return pkg._meta_generator;
+              },
+            },
+            {
+              match: '[version]',
+              replacement: function () {
+                return pkg.version;
+              },
+            },
+            {
+              match: '[source]',
+              replacement: function () {
+                return pkg._sourceLink;
+              },
+            }
+          ]
+        },
+        files: [
+          { expand: true,
+            cwd: 'site/',
+            src: ['**/*.html'],
+            dest: '<%= WORK_DIR %>/'
+          }
+        ]
+      },
       test_orig: {
         options: {
           patterns: [
@@ -330,13 +372,19 @@ module.exports = (grunt) => {
     },
     JS_DIR: () => {
       const s = pkg._jsLegacyFile;
-      return s.substr(0, s.lastIndexOf('/') + 1);
+      return s.substr(0, s.lastIndexOf('/'));
     }
   });
   config.env.test_orig = createEnv({
     NODE_ENV: 'test',
     WORK_DIR: () => {
       return pkg._scratch + "/orig_tests";
+    }
+  });
+  config.env.dist = createEnv({
+    NODE_ENV: 'prduction',
+    WORK_DIR: () => {
+      return pkg.main.substr(0, pkg.main.lastIndexOf('/'));
     }
   });
   config.env.build_legacy = createEnv({
@@ -352,7 +400,7 @@ module.exports = (grunt) => {
     },
     JS_DIR: () => {
       const s = pkg._jsLegacyFile;
-      return s.substr(0, s.lastIndexOf('/') + 1);
+      return s.substr(0, s.lastIndexOf('/'));
     },
     SCRATCH_BUILD: () => {
       return pkg._scratchLegacy.replace('{0}', pkg._scratch);
@@ -414,7 +462,12 @@ module.exports = (grunt) => {
     'shell:rollup',
     'terser:main',
     'remove_comments:js',
-    'copy:final'
+    'copy:final',
+    'copy:typo_us_en',
+    'env:dist',
+    'loadconst',
+    'log-const',
+    'copy:typo_us_en'
   ]);
 
   grunt.registerTask('test', [
@@ -508,7 +561,8 @@ module.exports = (grunt) => {
     'copy:typo_us_en',
     'copy:test_dict',
     'copy:js_legacy_min',
-    'copy:site_files'
+    'copy:site_files',
+    'replace:html'
   ]);
   grunt.registerTask('site_start', [
     'env:site',

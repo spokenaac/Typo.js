@@ -3822,35 +3822,18 @@
 	      this.flags = {};
 	    }
 
-	    var readDataFile = function () {
-	      var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(url) {
-	        var response;
+	    var readDataFile = function readDataFile(url) {
+	      var response = _this._readFile(url, null);
+
+	      return response;
+	    };
+
+	    var init = function () {
+	      var _ref = _asyncToGenerator(regeneratorRuntime.mark(function _callee(dic, aff, wData) {
+	        var setAffData, setWordsData, setup, isChromeExt, isBrowserExt, path, pLoadDataAff, pLoadDataDic, i, getURL;
 	        return regeneratorRuntime.wrap(function _callee$(_context) {
 	          while (1) {
 	            switch (_context.prev = _context.next) {
-	              case 0:
-	                response = _this._readFile(url, null);
-	                return _context.abrupt("return", response);
-
-	              case 2:
-	              case "end":
-	                return _context.stop();
-	            }
-	          }
-	        }, _callee);
-	      }));
-
-	      return function readDataFile(_x) {
-	        return _ref.apply(this, arguments);
-	      };
-	    }();
-
-	    var init = function () {
-	      var _ref2 = _asyncToGenerator(regeneratorRuntime.mark(function _callee2(dic, aff, wData) {
-	        var setAffData, setWordsData, setup, isChromeExt, isBrowserExt, path, pLoadDataAff, pLoadDataDic, i, getURL;
-	        return regeneratorRuntime.wrap(function _callee2$(_context2) {
-	          while (1) {
-	            switch (_context2.prev = _context2.next) {
 	              case 0:
 	                setAffData = function setAffData(data) {
 	                  aff = data;
@@ -4026,7 +4009,7 @@
 	                    }
 	                }
 
-	                return _context2.abrupt("return", new Promise(function (resolve, reject) {
+	                return _context.abrupt("return", new Promise(function (resolve, reject) {
 	                  Promise.all([pLoadDataDic, pLoadDataAff]).then(function () {
 	                    resolve(true);
 	                  }).catch(function (err) {
@@ -4036,14 +4019,14 @@
 
 	              case 7:
 	              case "end":
-	                return _context2.stop();
+	                return _context.stop();
 	            }
 	          }
-	        }, _callee2);
+	        }, _callee);
 	      }));
 
-	      return function init(_x2, _x3, _x4) {
-	        return _ref2.apply(this, arguments);
+	      return function init(_x, _x2, _x3) {
+	        return _ref.apply(this, arguments);
 	      };
 	    }();
 
@@ -4092,7 +4075,7 @@
 	          return response.text();
 	        });
 	      } else if (typeof require !== 'undefined') {
-	        var fs = require("fs/promises");
+	        var fs = require("fs");
 
 	        var result = '';
 	        var _err = null;

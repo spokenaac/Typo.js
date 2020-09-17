@@ -51,7 +51,7 @@
         this.flags = {};
       }
 
-      const readDataFile = async url => {
+      const readDataFile = url => {
         const response = this._readFile(url, null);
 
         return response;
@@ -259,7 +259,7 @@
             headers: requestHeaders
           }).then(response => response.text());
         } else if (typeof require !== 'undefined') {
-          const fs = require("fs/promises");
+          const fs = require("fs");
 
           let result = '';
           let err = null;

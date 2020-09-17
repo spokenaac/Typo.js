@@ -134,7 +134,7 @@ export class Typo {
 			this.flags = {};
 		}
 
-		const readDataFile = async (url: string): Promise<string> => {
+		const readDataFile = (url: string): Promise<string> => {
 			const response = this._readFile(url, null);
 			return response;
 			// response.then(text => {
@@ -390,7 +390,7 @@ export class Typo {
 			}).then((response) => response.text());;
 
 		} else if (typeof require !== 'undefined') { // Node.js
-			const fs = require("fs/promises");
+			const fs = require("fs");
 			let result = '';
 			let err: any = null;
 			try {

@@ -13,6 +13,8 @@
 
 **Typo.js** is a JavaScript spellchecker that uses Hunspell-style dictionaries.
 
+**Typo.js** is written in *Typescript*.
+
 ## Node install
 
 ````txt
@@ -24,6 +26,8 @@ npm install --save typo-js-ts
 Type implements a Ready pattern that returns a [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
 
 ````javascript
+var Typo = require('typo-js-ts').Typo;
+
 var dict = new Typo("en_US");
 dict.Ready.then(()=>{
   // Promise that dictionary is loaded
@@ -45,6 +49,8 @@ dict.Ready.then(()=>{
 or
 
 ````javascript
+var Typo = require('typo-js-ts').Typo;
+
 new Typo("en_US")
   .Ready.then(dictionary => {
     // Promise that dictionary is loaded
@@ -61,6 +67,8 @@ new Typo("en_US")
 or using callback
 
 ````javascript
+var Typo = require('typo-js-ts').Typo;
+
 new Typo("en_US", null, null, {
   loadedCallback: function (err, dict) {
     if(err) {
@@ -81,6 +89,8 @@ new Typo("en_US", null, null, {
 To use **Typo.js** in a Chrome extension, simply include the *typo.js* file in your extension's background page, and then initialize the dictionary like so:
 
 ```javascript
+var Typo = require('typo-js-ts').Typo;
+
 var dictionary = await new Typo("en_US").ready;
 ```
 
@@ -99,6 +109,8 @@ The default paths for `us_US` would be as follows:
 if your dictionaries are stored in a different path then this can be pass to **Typo.js** by way of the settings.
 
 ```javascript
+var Typo = require('typo-js-ts').Typo;
+
 var dictionary = new Typo("en_US", null, null, {
   dictionaryPath: "hunspell/dictionaries"
   });
@@ -113,14 +125,16 @@ dictionary.Ready.then(()=>{
 If using in node.js, load it like so:
 
 ```javascript
-var Typo = require("typo-js-ts");
+var Typo = require('typo-js-ts').Typo;
+
 var dictionary = new Typo([...]);
 ```
 
 Node as ES Module
 
 ````javascript
-import {Typo} from "typo-js-ts";
+import { Typo } from "typo-js-ts";
+
 var dictionary = new Typo([...]);
 ````
 
