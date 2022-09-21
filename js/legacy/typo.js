@@ -4075,20 +4075,9 @@
 	          return response.text();
 	        });
 	      } else if (typeof require !== 'undefined') {
-	        var fs = require("fs");
 
 	        var result = '';
 	        var _err = null;
-
-	        try {
-	          if (fs.existsSync(path)) {
-	            result = fs.readFileSync(path, charset);
-	          } else {
-	            throw new Error("Path " + path + " does not exist.");
-	          }
-	        } catch (e) {
-	          _err = e;
-	        }
 
 	        if (_err !== null) {
 	          return Promise.reject(_err);

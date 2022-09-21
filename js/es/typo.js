@@ -257,28 +257,9 @@
           return fetch(path, {
             method: 'GET',
             headers: requestHeaders
-          }).then(response => response.text());
-        } else if (typeof require !== 'undefined') {
-          const fs = require("fs");
-
-          let result = '';
-          let err = null;
-
-          try {
-            if (fs.existsSync(path)) {
-              result = fs.readFileSync(path, charset);
-            } else {
-              throw new Error("Path " + path + " does not exist.");
-            }
-          } catch (e) {
-            err = e;
-          }
-
-          if (err !== null) {
-            return Promise.reject(err);
-          }
-
-          return Promise.resolve(result);
+          }).then(response => {
+            return response.text();
+          });
         }
 
         return Promise.reject(new Error('An Error occured getting dictionary'));

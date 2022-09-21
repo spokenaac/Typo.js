@@ -44,7 +44,7 @@ interface IFlags extends ILooseObject {
 }
 
 interface IOptions {
-	flags: IFlags
+	flags?: IFlags
 	dictionaryPath?: string
 	loadedCallback?: typeoLoadedCallback | Array<typeoLoadedCallback>
 }
@@ -165,6 +165,7 @@ export class Typo {
 				if (!wData) {
 					return;
 				}
+
 				this.rules = this._parseAFF(aff);
 
 				// Save the rule codes that are used in compound rules.
@@ -387,26 +388,11 @@ export class Typo {
 			return fetch(path, {
 				method: 'GET',
 				headers: requestHeaders
-			}).then((response) => response.text());;
-
-		} else if (typeof require !== 'undefined') { // Node.js
-			const fs = require("fs");
-			let result = '';
-			let err: any = null;
-			try {
-				if (fs.existsSync(path)) {
-					result = fs.readFileSync(path, charset);
-				} else {
-					throw new Error("Path " + path + " does not exist.");
-				}
-			} catch (e) {
-				err = e;
-			}
-			if (err !== null) {
-				return Promise.reject(err);
-			}
-			return Promise.resolve(result);
+			}).then((response) => {
+				return response.text()
+			});;
 		}
+
 		return Promise.reject(new Error('An Error occured getting dictionary'));
 	}
 	// #endregion _readFile function
