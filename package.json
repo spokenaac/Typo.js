@@ -15,7 +15,7 @@
   "_sourceLink": "https://github.com/Amourspirit/Typo.js",
   "_meta_generator": "Typo-js-ts",
   "name": "spoken-typo-js-ts",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Typo.js is a JavaScript spellchecker that uses Hunspell-style dictionaries.",
   "main": "dist/commonjs/typo.js",
   "module": "dist/es/typo.js",
