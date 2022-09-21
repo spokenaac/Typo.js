@@ -339,7 +339,7 @@ export class Typo {
 			.catch(err => {
 				doCallBacks(err, this);
 				throw err;
-		});
+			});
 	}
 	get dictionary() {
 		if (this.lDictionary === '') {
@@ -368,392 +368,6 @@ export class Typo {
 		}
 		return this;
 	}
-
-	// #region _readFile function
-	/**
-	 * Read the contents of a file.
-	 * 
-	 * @param {String} path The path (relative) to the file.
-	 * @param {String|null} charset The expected charset of the file, If null default to utf8
-	 * @param {Boolean} async If true, the file will be read asynchronously. For node.js this does nothing, all
-	 * files are read synchronously.
-	 * @returns {String} The file data if async is false, otherwise a promise object. If running node.js, the data is
-	 * always returned.
-	 */
-	private _readFile(path: string, charset: string | null): Promise<string> {
-		charset = charset || "utf8";
-		if (typeof window !== 'undefined') {
-			const requestHeaders: HeadersInit = new Headers();
-			requestHeaders.set('Content-Type', "text/plain; charset=" + charset);
-			return fetch(path, {
-				method: 'GET',
-				headers: requestHeaders
-			}).then((response) => {
-				return response.text()
-			});;
-		}
-
-		return Promise.reject(new Error('An Error occured getting dictionary'));
-	}
-	// #endregion _readFile function
-
-	// #region _parseAFF
-	private _parseAFF(data: string) {
-		const rules: ILooseObject = {};
-
-		let line: string;
-		let subline: string;
-		let numEntries: number;
-		let lineParts: string[];
-		let i: number;
-		let j: number = 0;
-		let iLen: number = 0;
-		let jLen: number = 0;
-
-		// Remove comment lines
-		data = this._removeAffixComments(data);
-
-		const lines = data.split(/\r?\n/);
-		iLen = lines.length;
-		for (i = 0; i < iLen; i++) {
-			line = lines[i];
-
-			const definitionParts = line.split(/\s+/);
-
-			const ruleType = definitionParts[0].toUpperCase();
-			if (ruleType === "PFX" || ruleType === "SFX") {
-				const ruleCode = definitionParts[1];
-				const combineable = definitionParts[2].toUpperCase();
-				numEntries = parseInt(definitionParts[3], 10);
-
-				const entries: IEntry[] = [];
-
-				if (isNaN(numEntries) === false) {
-					for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
-						subline = lines[j];
-
-						lineParts = subline.split(/\s+/);
-						const charactersToRemove: string = lineParts[2];
-
-						const additionParts: string[] = lineParts[3].split("/");
-
-						let charactersToAdd: string = additionParts[0];
-						if (charactersToAdd === "0") {
-							charactersToAdd = "";
-						}
-
-
-						const continuationClasses: string[] = this.parseRuleCodes(additionParts[1]);
-
-						const regexToMatch = lineParts[4];
-
-						const entry: IEntry = {
-							add: charactersToAdd
-						};
-
-						if (continuationClasses.length > 0) {
-							entry.continuationClasses = continuationClasses;
-						}
-
-						if (regexToMatch !== ".") {
-							if (ruleType === "SFX") {
-								entry.match = new RegExp(regexToMatch + "$");
-							} else {
-								entry.match = new RegExp("^" + regexToMatch);
-							}
-						}
-
-						if (charactersToRemove.toString() !== "0") {
-							if (ruleType === "SFX") {
-								entry.remove = new RegExp(charactersToRemove + "$");
-							} else {
-								// in original Typo.js this was added as string
-								// entry.remove = charactersToRemove;
-								entry.remove = new RegExp(charactersToRemove);
-							}
-						}
-
-						entries.push(entry);
-					}
-				}
-				rules[ruleCode] = {
-					"type": ruleType,
-					"combineable": (combineable === "Y"),
-					"entries": entries
-				};
-
-				i += numEntries;
-			}
-			else if (ruleType === "COMPOUNDRULE") {
-				numEntries = parseInt(definitionParts[1], 10);
-
-				for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
-					line = lines[j];
-
-					lineParts = line.split(/\s+/);
-					// When the regexp parameter is a string or a number,
-					// it is implicitly converted to a RegExp by using new RegExp(regexp).
-					// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
-					this.compoundRules.push(lineParts[1]);
-				}
-
-				i += numEntries;
-			} else if (ruleType === "REP") {
-				lineParts = line.split(/\s+/);
-
-				if (lineParts.length === 3) {
-					this.replacementTable.push([
-						lineParts[1], lineParts[2]
-					]);
-				}
-			} else {
-				// ONLYINCOMPOUND
-				// COMPOUNDMIN
-				// FLAG
-				// KEEPCASE
-				// NEEDAFFIX
-				this.flags[ruleType] = definitionParts[1];
-			}
-		}
-
-		return rules;
-
-	}
-	// #endregion _parseAFF
-
-	// #region _removeAffixComments
-	/**
-		 * Removes comment lines and then cleans up blank lines and trailing whitespace.
-		 *
-		 * @param {String} data The data from an affix file.
-		 * @return {String} The cleaned-up data.
-		 */
-
-	_removeAffixComments(data: string): string {
-		// Remove comments
-		// This used to remove any string starting with '#' up to the end of the line,
-		// but some COMPOUNDRULE definitions include '#' as part of the rule.
-		// I haven't seen any affix files that use comments on the same line as real data,
-		// so I don't think this will break anything.
-		const str = data.replace(/^\s*#.*$/mg, "")
-			// Trim each line
-			.replace(/^\s\s*/m, '')
-			.replace(/\s\s*$/m, '')
-			// Remove blank lines.
-			.replace(/\n{2,}/g, "\n")
-			// Trim the entire string
-			.replace(/^\s\s*/, '')
-			.replace(/\s\s*$/, '');
-		return str;
-	}
-	// #endregion _removeAffixComments
-
-	// #region _parseDIC
-	/**
-	 * Parses the words out from the .dic file.
-	 *
-	 * @param {String} data The data from the dictionary file.
-	 * @returns object The lookup table containing all of the words and
-	 *                 word forms from the dictionary.  
-	* The dictionary table looks similar to the folowng.  
-	* Note the dictionary table can have more than 20,000 entries
-	````js
-		var dictionaryTable = {
-			"1": [["n", "m"]],
-			"2": [["n", "1"]],
-			"d": [["J", "G", "V", "X"]]
-			};
-	 ````
-	 */
-	private _parseDIC(data: string): IDictionaryTable {
-		data = this._removeDicComments(data);
-
-		const lines: string[] = data.split(/\r?\n/);
-
-		const dictionaryTable: IDictionaryTable = {};
-
-		/**
-		 * Pushes a string array on dictionary table
-		 * @param {strng} key The key to add or append rules to
-		 * @param {string[]} rules string array of rules to add.
-		 * 
-		 * The dictionary table looks similar to the folowng.  
-		 * Note the dictionary table can have more than 20,000 entries
-		 ```js
-		var dictionaryTable = {
-			"1": [["n", "m"]],
-			"2": [["n", "1"]],
-			"d": [["J", "G", "V", "X"]]
-			};
-		 ```
-		 */
-		const addWord = (key: string, rules: string[]) => { // Some dictionaries will list the same word multiple times with different rule sets.
-			if (!dictionaryTable.hasOwnProperty(key)) {
-				dictionaryTable[key] = null;
-			}
-
-			if (rules.length > 0) {
-				let el = dictionaryTable[key]
-				if (el === null || el === undefined) {
-					el = [];
-					dictionaryTable[key] = el;
-				}
-				el.push(rules);
-			}
-		}
-
-		// The first line is the number of words in the dictionary.
-		for (let i = 1; i < lines.length; i++) {
-			const line = lines[i];
-
-			if (!line) { // Ignore empty lines.
-				continue;
-			}
-
-			const parts = line.split("/", 2);
-
-			const word = parts[0];
-
-
-			// Now for each affix rule, generate that form of the word.
-			if (parts.length > 1) {
-				const ruleCodesArray: string[] = this.parseRuleCodes(parts[1]);
-
-				// Save the ruleCodes for compound word situations.
-				if (!(this.flags.NEEDAFFIX)
-					|| (this.flags.NEEDAFFIX && ruleCodesArray.indexOf(this.flags.NEEDAFFIX) === -1)) {
-					addWord(word, ruleCodesArray);
-				}
-				const jlen = ruleCodesArray.length;
-				for (let j = 0; j < jlen; j++) {
-					const code = ruleCodesArray[j];
-
-					const rule = this.rules[code];
-
-					if (rule) {
-						const newWords = this._applyRule(word, rule);
-						for (const newWord of newWords) {
-							addWord(newWord, []);
-
-							if (rule.combineable) {
-								for (let k = j + 1; k < jlen; k++) {
-									const combineCode = ruleCodesArray[k];
-									const combineRule = this.rules[combineCode];
-
-									if (combineRule) {
-										if (combineRule.combineable && (rule.type !== combineRule.type)) {
-											const otherNewWords = this._applyRule(newWord, combineRule);
-											for (const otherNewWord of otherNewWords) {
-												addWord(otherNewWord, []);
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-					if (code in this.compoundRuleCodes) {
-						this.compoundRuleCodes[code].push(word);
-					}
-				}
-			} else {
-				addWord(word.trim(), []);
-			}
-		}
-		return dictionaryTable;
-	}
-	// #endregion _parseDIC
-
-	// #region _removeDicComments
-	/**
-	 * Removes comment lines and then cleans up blank lines and trailing whitespace.
-	 *
-	 * @param {String} data The data from a .dic file.
-	 * @return {String} The cleaned-up data.
-	 */
-	private _removeDicComments(data: string): string {
-		// I can't find any official documentation on it, but at least the de_DE
-		// dictionary uses tab-indented lines as comments.
-		// Remove comments
-		return data.replace(/^\t.*$/mg, "");
-	}
-
-	// #endregion _removeDicComments
-
-	// #region _applyRule
-	private _applyRule(word: string, rule: IRuleCodes): string[] {
-
-		const entries: IEntry[] = rule.entries;
-		let newWords: string[] = [];
-		// if (!entries) {
-		// 	return newWords;
-		// }
-		for (const entry of entries) {
-			if (!entry.match || word.match(entry.match)) {
-				let newWord = word;
-
-				if (entry.remove) {
-					newWord = newWord.replace(entry.remove, "");
-				}
-
-				if (rule.type === "SFX") {
-					newWord = newWord + entry.add;
-				} else {
-					newWord = entry.add + newWord;
-				}
-				
-				newWords.push(newWord);
-
-				if (entry.continuationClasses) {
-					entry.continuationClasses.map(key => {
-						const continuationRule = this.rules[key];
-
-						if(continuationRule) {
-							newWords = newWords.concat(this._applyRule(newWord, continuationRule));
-						}
-						/*
-					else {
-						// This shouldn't happen, but it does, at least in the de_DE dictionary.
-						// I think the author mistakenly supplied lower-case rule codes instead
-						// of upper-case.
-					}
-					*/
-					});
-				}
-			}
-		}
-		return newWords;
-	}
-
-	// #endregion _applyRule
-
-	//#region init
-
-	//#endregion init
-
-	// #region parseRuleCodes
-
-	/**
-	 * 
-	 * @param {string} textCodes
-	 */
-	private parseRuleCodes(textCodes: string): string[] {
-		if (!textCodes || this.flags === undefined) {
-			return [];
-		} else if (!(this.flags.FLAG)) {
-			return textCodes.split("");
-		} else if (this.flags.FLAG === "long") {
-			const pFlags: string[] = [];
-			for (let i = 0; i < textCodes.length; i += 2) {
-				pFlags.push(textCodes.substr(i, 2));
-			}
-			return pFlags;
-		} else if (this.flags.FLAG === "num") {
-			return textCodes.split(",");
-		}
-		return [];
-	}
-	// #endregion parseRuleCodes
 
 	//#region check Methods
 	/**
@@ -869,7 +483,11 @@ export class Typo {
 		}
 		const flattenArr = (arr: string[][]): string[] => {
 			const ar: string[] = [];
-			for (const a of arr) for (const s of a) ar.push(s);
+			for (const a of arr) {
+				for (const s of a) {
+					ar.push(s);
+				}
+			}
 			return ar;
 		}
 		if (strFlag in this.flags) {
@@ -918,7 +536,9 @@ export class Typo {
 			}
 		}
 
-		if (this.check(word)) return [];
+		if (this.check(word)) {
+			return [];
+		}
 
 		// Check the replacement table.
 		for (const replacementEntry of this.replacementTable) {
@@ -1141,4 +761,390 @@ export class Typo {
 		return this.memoized[word]['suggestions'];
 	}
 	//#endregion suggest
+
+	// #region _removeAffixComments
+	/**
+	 * Removes comment lines and then cleans up blank lines and trailing whitespace.
+	 *
+	 * @param {String} data The data from an affix file.
+	 * @return {String} The cleaned-up data.
+	 */
+
+	public _removeAffixComments(data: string): string {
+		// Remove comments
+		// This used to remove any string starting with '#' up to the end of the line,
+		// but some COMPOUNDRULE definitions include '#' as part of the rule.
+		// I haven't seen any affix files that use comments on the same line as real data,
+		// so I don't think this will break anything.
+		const str = data.replace(/^\s*#.*$/mg, "")
+			// Trim each line
+			.replace(/^\s\s*/m, '')
+			.replace(/\s\s*$/m, '')
+			// Remove blank lines.
+			.replace(/\n{2,}/g, "\n")
+			// Trim the entire string
+			.replace(/^\s\s*/, '')
+			.replace(/\s\s*$/, '');
+		return str;
+	}
+	// #endregion _removeAffixComments
+
+	// #region _readFile function
+	/**
+	 * Read the contents of a file.
+	 * 
+	 * @param {String} path The path (relative) to the file.
+	 * @param {String|null} charset The expected charset of the file, If null default to utf8
+	 * @param {Boolean} async If true, the file will be read asynchronously. For node.js this does nothing, all
+	 * files are read synchronously.
+	 * @returns {String} The file data if async is false, otherwise a promise object. If running node.js, the data is
+	 * always returned.
+	 */
+	private _readFile(path: string, charset: string | null): Promise<string> {
+		charset = charset || "utf8";
+		if (typeof window !== 'undefined') {
+			const requestHeaders: HeadersInit = new Headers();
+			requestHeaders.set('Content-Type', "text/plain; charset=" + charset);
+			return fetch(path, {
+				method: 'GET',
+				headers: requestHeaders
+			}).then((response) => {
+				return response.text()
+			});;
+		}
+
+		return Promise.reject(new Error('An Error occured getting dictionary'));
+	}
+	// #endregion _readFile function
+
+	// #region _parseAFF
+	private _parseAFF(data: string) {
+		const rules: ILooseObject = {};
+
+		let line: string;
+		let subline: string;
+		let numEntries: number;
+		let lineParts: string[];
+		let i: number;
+		let j: number = 0;
+		let iLen: number = 0;
+		let jLen: number = 0;
+
+		// Remove comment lines
+		data = this._removeAffixComments(data);
+
+		const lines = data.split(/\r?\n/);
+		iLen = lines.length;
+		for (i = 0; i < iLen; i++) {
+			line = lines[i];
+
+			const definitionParts = line.split(/\s+/);
+
+			const ruleType = definitionParts[0].toUpperCase();
+			if (ruleType === "PFX" || ruleType === "SFX") {
+				const ruleCode = definitionParts[1];
+				const combineable = definitionParts[2].toUpperCase();
+				numEntries = parseInt(definitionParts[3], 10);
+
+				const entries: IEntry[] = [];
+
+				if (isNaN(numEntries) === false) {
+					for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
+						subline = lines[j];
+
+						lineParts = subline.split(/\s+/);
+						const charactersToRemove: string = lineParts[2];
+
+						const additionParts: string[] = lineParts[3].split("/");
+
+						let charactersToAdd: string = additionParts[0];
+						if (charactersToAdd === "0") {
+							charactersToAdd = "";
+						}
+
+
+						const continuationClasses: string[] = this.parseRuleCodes(additionParts[1]);
+
+						const regexToMatch = lineParts[4];
+
+						const entry: IEntry = {
+							add: charactersToAdd
+						};
+
+						if (continuationClasses.length > 0) {
+							entry.continuationClasses = continuationClasses;
+						}
+
+						if (regexToMatch !== ".") {
+							if (ruleType === "SFX") {
+								entry.match = new RegExp(regexToMatch + "$");
+							} else {
+								entry.match = new RegExp("^" + regexToMatch);
+							}
+						}
+
+						if (charactersToRemove.toString() !== "0") {
+							if (ruleType === "SFX") {
+								entry.remove = new RegExp(charactersToRemove + "$");
+							} else {
+								// in original Typo.js this was added as string
+								// entry.remove = charactersToRemove;
+								entry.remove = new RegExp(charactersToRemove);
+							}
+						}
+
+						entries.push(entry);
+					}
+				}
+				rules[ruleCode] = {
+					"type": ruleType,
+					"combineable": (combineable === "Y"),
+					"entries": entries
+				};
+
+				i += numEntries;
+			}
+			else if (ruleType === "COMPOUNDRULE") {
+				numEntries = parseInt(definitionParts[1], 10);
+
+				for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
+					line = lines[j];
+
+					lineParts = line.split(/\s+/);
+					// When the regexp parameter is a string or a number,
+					// it is implicitly converted to a RegExp by using new RegExp(regexp).
+					// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match
+					this.compoundRules.push(lineParts[1]);
+				}
+
+				i += numEntries;
+			} else if (ruleType === "REP") {
+				lineParts = line.split(/\s+/);
+
+				if (lineParts.length === 3) {
+					this.replacementTable.push([
+						lineParts[1], lineParts[2]
+					]);
+				}
+			} else {
+				// ONLYINCOMPOUND
+				// COMPOUNDMIN
+				// FLAG
+				// KEEPCASE
+				// NEEDAFFIX
+				this.flags[ruleType] = definitionParts[1];
+			}
+		}
+
+		return rules;
+
+	}
+	// #endregion _parseAFF
+
+	// #region _parseDIC
+	/**
+	 * Parses the words out from the .dic file.
+	 *
+	 * @param {String} data The data from the dictionary file.
+	 * @returns object The lookup table containing all of the words and
+	 *                 word forms from the dictionary.  
+	* The dictionary table looks similar to the folowng.  
+	* Note the dictionary table can have more than 20,000 entries
+	````js
+		var dictionaryTable = {
+			"1": [["n", "m"]],
+			"2": [["n", "1"]],
+			"d": [["J", "G", "V", "X"]]
+			};
+	 ````
+	 */
+	private _parseDIC(data: string): IDictionaryTable {
+		data = this._removeDicComments(data);
+
+		const lines: string[] = data.split(/\r?\n/);
+
+		const dictionaryTable: IDictionaryTable = {};
+
+		/**
+		 * Pushes a string array on dictionary table
+		 * @param {strng} key The key to add or append rules to
+		 * @param {string[]} rules string array of rules to add.
+		 * 
+		 * The dictionary table looks similar to the folowng.  
+		 * Note the dictionary table can have more than 20,000 entries
+		 ```js
+		var dictionaryTable = {
+			"1": [["n", "m"]],
+			"2": [["n", "1"]],
+			"d": [["J", "G", "V", "X"]]
+			};
+		 ```
+		 */
+		const addWord = (key: string, rules: string[]) => { // Some dictionaries will list the same word multiple times with different rule sets.
+			if (!dictionaryTable.hasOwnProperty(key)) {
+				dictionaryTable[key] = null;
+			}
+
+			if (rules.length > 0) {
+				let el = dictionaryTable[key]
+				if (el === null || el === undefined) {
+					el = [];
+					dictionaryTable[key] = el;
+				}
+				el.push(rules);
+			}
+		}
+
+		// The first line is the number of words in the dictionary.
+		for (let i = 1; i < lines.length; i++) {
+			const line = lines[i];
+
+			if (!line) { // Ignore empty lines.
+				continue;
+			}
+
+			const parts = line.split("/", 2);
+
+			const word = parts[0];
+
+
+			// Now for each affix rule, generate that form of the word.
+			if (parts.length > 1) {
+				const ruleCodesArray: string[] = this.parseRuleCodes(parts[1]);
+
+				// Save the ruleCodes for compound word situations.
+				if (!(this.flags.NEEDAFFIX)
+					|| (this.flags.NEEDAFFIX && ruleCodesArray.indexOf(this.flags.NEEDAFFIX) === -1)) {
+					addWord(word, ruleCodesArray);
+				}
+				const jlen = ruleCodesArray.length;
+				for (let j = 0; j < jlen; j++) {
+					const code = ruleCodesArray[j];
+
+					const rule = this.rules[code];
+
+					if (rule) {
+						const newWords = this._applyRule(word, rule);
+						for (const newWord of newWords) {
+							addWord(newWord, []);
+
+							if (rule.combineable) {
+								for (let k = j + 1; k < jlen; k++) {
+									const combineCode = ruleCodesArray[k];
+									const combineRule = this.rules[combineCode];
+
+									if (combineRule) {
+										if (combineRule.combineable && (rule.type !== combineRule.type)) {
+											const otherNewWords = this._applyRule(newWord, combineRule);
+											for (const otherNewWord of otherNewWords) {
+												addWord(otherNewWord, []);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					if (code in this.compoundRuleCodes) {
+						this.compoundRuleCodes[code].push(word);
+					}
+				}
+			} else {
+				addWord(word.trim(), []);
+			}
+		}
+		return dictionaryTable;
+	}
+	// #endregion _parseDIC
+
+	// #region _removeDicComments
+	/**
+	 * Removes comment lines and then cleans up blank lines and trailing whitespace.
+	 *
+	 * @param {String} data The data from a .dic file.
+	 * @return {String} The cleaned-up data.
+	 */
+	private _removeDicComments(data: string): string {
+		// I can't find any official documentation on it, but at least the de_DE
+		// dictionary uses tab-indented lines as comments.
+		// Remove comments
+		return data.replace(/^\t.*$/mg, "");
+	}
+
+	// #endregion _removeDicComments
+
+	// #region _applyRule
+	private _applyRule(word: string, rule: IRuleCodes): string[] {
+
+		const entries: IEntry[] = rule.entries;
+		let newWords: string[] = [];
+		// if (!entries) {
+		// 	return newWords;
+		// }
+		for (const entry of entries) {
+			if (!entry.match || word.match(entry.match)) {
+				let newWord = word;
+
+				if (entry.remove) {
+					newWord = newWord.replace(entry.remove, "");
+				}
+
+				if (rule.type === "SFX") {
+					newWord = newWord + entry.add;
+				} else {
+					newWord = entry.add + newWord;
+				}
+
+				newWords.push(newWord);
+
+				if (entry.continuationClasses) {
+					entry.continuationClasses.map(key => {
+						const continuationRule = this.rules[key];
+
+						if (continuationRule) {
+							newWords = newWords.concat(this._applyRule(newWord, continuationRule));
+						}
+						/*
+					else {
+						// This shouldn't happen, but it does, at least in the de_DE dictionary.
+						// I think the author mistakenly supplied lower-case rule codes instead
+						// of upper-case.
+					}
+					*/
+					});
+				}
+			}
+		}
+		return newWords;
+	}
+
+	// #endregion _applyRule
+
+	//#region init
+
+	//#endregion init
+
+	// #region parseRuleCodes
+
+	/**
+	 * 
+	 * @param {string} textCodes
+	 */
+	private parseRuleCodes(textCodes: string): string[] {
+		if (!textCodes || this.flags === undefined) {
+			return [];
+		} else if (!(this.flags.FLAG)) {
+			return textCodes.split("");
+		} else if (this.flags.FLAG === "long") {
+			const pFlags: string[] = [];
+			for (let i = 0; i < textCodes.length; i += 2) {
+				pFlags.push(textCodes.substr(i, 2));
+			}
+			return pFlags;
+		} else if (this.flags.FLAG === "num") {
+			return textCodes.split(",");
+		}
+		return [];
+	}
+	// #endregion parseRuleCodes
 }

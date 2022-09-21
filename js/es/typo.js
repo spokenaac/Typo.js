@@ -247,273 +247,6 @@
         return this;
       }
     }, {
-      key: "_readFile",
-      value: function _readFile(path, charset) {
-        charset = charset || "utf8";
-
-        if (typeof window !== 'undefined') {
-          const requestHeaders = new Headers();
-          requestHeaders.set('Content-Type', "text/plain; charset=" + charset);
-          return fetch(path, {
-            method: 'GET',
-            headers: requestHeaders
-          }).then(response => {
-            return response.text();
-          });
-        }
-
-        return Promise.reject(new Error('An Error occured getting dictionary'));
-      }
-    }, {
-      key: "_parseAFF",
-      value: function _parseAFF(data) {
-        const rules = {};
-        let line;
-        let subline;
-        let numEntries;
-        let lineParts;
-        let i;
-        let j = 0;
-        let iLen = 0;
-        let jLen = 0;
-        data = this._removeAffixComments(data);
-        const lines = data.split(/\r?\n/);
-        iLen = lines.length;
-
-        for (i = 0; i < iLen; i++) {
-          line = lines[i];
-          const definitionParts = line.split(/\s+/);
-          const ruleType = definitionParts[0].toUpperCase();
-
-          if (ruleType === "PFX" || ruleType === "SFX") {
-            const ruleCode = definitionParts[1];
-            const combineable = definitionParts[2].toUpperCase();
-            numEntries = parseInt(definitionParts[3], 10);
-            const entries = [];
-
-            if (isNaN(numEntries) === false) {
-              for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
-                subline = lines[j];
-                lineParts = subline.split(/\s+/);
-                const charactersToRemove = lineParts[2];
-                const additionParts = lineParts[3].split("/");
-                let charactersToAdd = additionParts[0];
-
-                if (charactersToAdd === "0") {
-                  charactersToAdd = "";
-                }
-
-                const continuationClasses = this.parseRuleCodes(additionParts[1]);
-                const regexToMatch = lineParts[4];
-                const entry = {
-                  add: charactersToAdd
-                };
-
-                if (continuationClasses.length > 0) {
-                  entry.continuationClasses = continuationClasses;
-                }
-
-                if (regexToMatch !== ".") {
-                  if (ruleType === "SFX") {
-                    entry.match = new RegExp(regexToMatch + "$");
-                  } else {
-                    entry.match = new RegExp("^" + regexToMatch);
-                  }
-                }
-
-                if (charactersToRemove.toString() !== "0") {
-                  if (ruleType === "SFX") {
-                    entry.remove = new RegExp(charactersToRemove + "$");
-                  } else {
-                    entry.remove = new RegExp(charactersToRemove);
-                  }
-                }
-
-                entries.push(entry);
-              }
-            }
-
-            rules[ruleCode] = {
-              "type": ruleType,
-              "combineable": combineable === "Y",
-              "entries": entries
-            };
-            i += numEntries;
-          } else if (ruleType === "COMPOUNDRULE") {
-            numEntries = parseInt(definitionParts[1], 10);
-
-            for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
-              line = lines[j];
-              lineParts = line.split(/\s+/);
-              this.compoundRules.push(lineParts[1]);
-            }
-
-            i += numEntries;
-          } else if (ruleType === "REP") {
-            lineParts = line.split(/\s+/);
-
-            if (lineParts.length === 3) {
-              this.replacementTable.push([lineParts[1], lineParts[2]]);
-            }
-          } else {
-            this.flags[ruleType] = definitionParts[1];
-          }
-        }
-
-        return rules;
-      }
-    }, {
-      key: "_removeAffixComments",
-      value: function _removeAffixComments(data) {
-        const str = data.replace(/^\s*#.*$/mg, "").replace(/^\s\s*/m, '').replace(/\s\s*$/m, '').replace(/\n{2,}/g, "\n").replace(/^\s\s*/, '').replace(/\s\s*$/, '');
-        return str;
-      }
-    }, {
-      key: "_parseDIC",
-      value: function _parseDIC(data) {
-        data = this._removeDicComments(data);
-        const lines = data.split(/\r?\n/);
-        const dictionaryTable = {};
-
-        const addWord = (key, rules) => {
-          if (!dictionaryTable.hasOwnProperty(key)) {
-            dictionaryTable[key] = null;
-          }
-
-          if (rules.length > 0) {
-            let el = dictionaryTable[key];
-
-            if (el === null || el === undefined) {
-              el = [];
-              dictionaryTable[key] = el;
-            }
-
-            el.push(rules);
-          }
-        };
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i];
-
-          if (!line) {
-            continue;
-          }
-
-          const parts = line.split("/", 2);
-          const word = parts[0];
-
-          if (parts.length > 1) {
-            const ruleCodesArray = this.parseRuleCodes(parts[1]);
-
-            if (!this.flags.NEEDAFFIX || this.flags.NEEDAFFIX && ruleCodesArray.indexOf(this.flags.NEEDAFFIX) === -1) {
-              addWord(word, ruleCodesArray);
-            }
-
-            const jlen = ruleCodesArray.length;
-
-            for (let j = 0; j < jlen; j++) {
-              const code = ruleCodesArray[j];
-              const rule = this.rules[code];
-
-              if (rule) {
-                const newWords = this._applyRule(word, rule);
-
-                for (const newWord of newWords) {
-                  addWord(newWord, []);
-
-                  if (rule.combineable) {
-                    for (let k = j + 1; k < jlen; k++) {
-                      const combineCode = ruleCodesArray[k];
-                      const combineRule = this.rules[combineCode];
-
-                      if (combineRule) {
-                        if (combineRule.combineable && rule.type !== combineRule.type) {
-                          const otherNewWords = this._applyRule(newWord, combineRule);
-
-                          for (const otherNewWord of otherNewWords) {
-                            addWord(otherNewWord, []);
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-
-              if (code in this.compoundRuleCodes) {
-                this.compoundRuleCodes[code].push(word);
-              }
-            }
-          } else {
-            addWord(word.trim(), []);
-          }
-        }
-
-        return dictionaryTable;
-      }
-    }, {
-      key: "_removeDicComments",
-      value: function _removeDicComments(data) {
-        return data.replace(/^\t.*$/mg, "");
-      }
-    }, {
-      key: "_applyRule",
-      value: function _applyRule(word, rule) {
-        const entries = rule.entries;
-        let newWords = [];
-
-        for (const entry of entries) {
-          if (!entry.match || word.match(entry.match)) {
-            let newWord = word;
-
-            if (entry.remove) {
-              newWord = newWord.replace(entry.remove, "");
-            }
-
-            if (rule.type === "SFX") {
-              newWord = newWord + entry.add;
-            } else {
-              newWord = entry.add + newWord;
-            }
-
-            newWords.push(newWord);
-
-            if (entry.continuationClasses) {
-              entry.continuationClasses.map(key => {
-                const continuationRule = this.rules[key];
-
-                if (continuationRule) {
-                  newWords = newWords.concat(this._applyRule(newWord, continuationRule));
-                }
-              });
-            }
-          }
-        }
-
-        return newWords;
-      }
-    }, {
-      key: "parseRuleCodes",
-      value: function parseRuleCodes(textCodes) {
-        if (!textCodes || this.flags === undefined) {
-          return [];
-        } else if (!this.flags.FLAG) {
-          return textCodes.split("");
-        } else if (this.flags.FLAG === "long") {
-          const pFlags = [];
-
-          for (let i = 0; i < textCodes.length; i += 2) {
-            pFlags.push(textCodes.substr(i, 2));
-          }
-
-          return pFlags;
-        } else if (this.flags.FLAG === "num") {
-          return textCodes.split(",");
-        }
-
-        return [];
-      }
-    }, {
       key: "check",
       value: function check(aWord) {
         if (!this.loaded) {
@@ -599,7 +332,11 @@
         const flattenArr = arr => {
           const ar = [];
 
-          for (const a of arr) for (const s of a) ar.push(s);
+          for (const a of arr) {
+            for (const s of a) {
+              ar.push(s);
+            }
+          }
 
           return ar;
         };
@@ -637,7 +374,9 @@
           }
         }
 
-        if (this.check(word)) return [];
+        if (this.check(word)) {
+          return [];
+        }
 
         for (const replacementEntry of this.replacementTable) {
           if (word.indexOf(replacementEntry[0]) !== -1) {
@@ -810,6 +549,273 @@
           'limit': limit
         };
         return this.memoized[word]['suggestions'];
+      }
+    }, {
+      key: "_removeAffixComments",
+      value: function _removeAffixComments(data) {
+        const str = data.replace(/^\s*#.*$/mg, "").replace(/^\s\s*/m, '').replace(/\s\s*$/m, '').replace(/\n{2,}/g, "\n").replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+        return str;
+      }
+    }, {
+      key: "_readFile",
+      value: function _readFile(path, charset) {
+        charset = charset || "utf8";
+
+        if (typeof window !== 'undefined') {
+          const requestHeaders = new Headers();
+          requestHeaders.set('Content-Type', "text/plain; charset=" + charset);
+          return fetch(path, {
+            method: 'GET',
+            headers: requestHeaders
+          }).then(response => {
+            return response.text();
+          });
+        }
+
+        return Promise.reject(new Error('An Error occured getting dictionary'));
+      }
+    }, {
+      key: "_parseAFF",
+      value: function _parseAFF(data) {
+        const rules = {};
+        let line;
+        let subline;
+        let numEntries;
+        let lineParts;
+        let i;
+        let j = 0;
+        let iLen = 0;
+        let jLen = 0;
+        data = this._removeAffixComments(data);
+        const lines = data.split(/\r?\n/);
+        iLen = lines.length;
+
+        for (i = 0; i < iLen; i++) {
+          line = lines[i];
+          const definitionParts = line.split(/\s+/);
+          const ruleType = definitionParts[0].toUpperCase();
+
+          if (ruleType === "PFX" || ruleType === "SFX") {
+            const ruleCode = definitionParts[1];
+            const combineable = definitionParts[2].toUpperCase();
+            numEntries = parseInt(definitionParts[3], 10);
+            const entries = [];
+
+            if (isNaN(numEntries) === false) {
+              for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
+                subline = lines[j];
+                lineParts = subline.split(/\s+/);
+                const charactersToRemove = lineParts[2];
+                const additionParts = lineParts[3].split("/");
+                let charactersToAdd = additionParts[0];
+
+                if (charactersToAdd === "0") {
+                  charactersToAdd = "";
+                }
+
+                const continuationClasses = this.parseRuleCodes(additionParts[1]);
+                const regexToMatch = lineParts[4];
+                const entry = {
+                  add: charactersToAdd
+                };
+
+                if (continuationClasses.length > 0) {
+                  entry.continuationClasses = continuationClasses;
+                }
+
+                if (regexToMatch !== ".") {
+                  if (ruleType === "SFX") {
+                    entry.match = new RegExp(regexToMatch + "$");
+                  } else {
+                    entry.match = new RegExp("^" + regexToMatch);
+                  }
+                }
+
+                if (charactersToRemove.toString() !== "0") {
+                  if (ruleType === "SFX") {
+                    entry.remove = new RegExp(charactersToRemove + "$");
+                  } else {
+                    entry.remove = new RegExp(charactersToRemove);
+                  }
+                }
+
+                entries.push(entry);
+              }
+            }
+
+            rules[ruleCode] = {
+              "type": ruleType,
+              "combineable": combineable === "Y",
+              "entries": entries
+            };
+            i += numEntries;
+          } else if (ruleType === "COMPOUNDRULE") {
+            numEntries = parseInt(definitionParts[1], 10);
+
+            for (j = i + 1, jLen = i + 1 + numEntries; j < jLen; j++) {
+              line = lines[j];
+              lineParts = line.split(/\s+/);
+              this.compoundRules.push(lineParts[1]);
+            }
+
+            i += numEntries;
+          } else if (ruleType === "REP") {
+            lineParts = line.split(/\s+/);
+
+            if (lineParts.length === 3) {
+              this.replacementTable.push([lineParts[1], lineParts[2]]);
+            }
+          } else {
+            this.flags[ruleType] = definitionParts[1];
+          }
+        }
+
+        return rules;
+      }
+    }, {
+      key: "_parseDIC",
+      value: function _parseDIC(data) {
+        data = this._removeDicComments(data);
+        const lines = data.split(/\r?\n/);
+        const dictionaryTable = {};
+
+        const addWord = (key, rules) => {
+          if (!dictionaryTable.hasOwnProperty(key)) {
+            dictionaryTable[key] = null;
+          }
+
+          if (rules.length > 0) {
+            let el = dictionaryTable[key];
+
+            if (el === null || el === undefined) {
+              el = [];
+              dictionaryTable[key] = el;
+            }
+
+            el.push(rules);
+          }
+        };
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+
+          if (!line) {
+            continue;
+          }
+
+          const parts = line.split("/", 2);
+          const word = parts[0];
+
+          if (parts.length > 1) {
+            const ruleCodesArray = this.parseRuleCodes(parts[1]);
+
+            if (!this.flags.NEEDAFFIX || this.flags.NEEDAFFIX && ruleCodesArray.indexOf(this.flags.NEEDAFFIX) === -1) {
+              addWord(word, ruleCodesArray);
+            }
+
+            const jlen = ruleCodesArray.length;
+
+            for (let j = 0; j < jlen; j++) {
+              const code = ruleCodesArray[j];
+              const rule = this.rules[code];
+
+              if (rule) {
+                const newWords = this._applyRule(word, rule);
+
+                for (const newWord of newWords) {
+                  addWord(newWord, []);
+
+                  if (rule.combineable) {
+                    for (let k = j + 1; k < jlen; k++) {
+                      const combineCode = ruleCodesArray[k];
+                      const combineRule = this.rules[combineCode];
+
+                      if (combineRule) {
+                        if (combineRule.combineable && rule.type !== combineRule.type) {
+                          const otherNewWords = this._applyRule(newWord, combineRule);
+
+                          for (const otherNewWord of otherNewWords) {
+                            addWord(otherNewWord, []);
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              if (code in this.compoundRuleCodes) {
+                this.compoundRuleCodes[code].push(word);
+              }
+            }
+          } else {
+            addWord(word.trim(), []);
+          }
+        }
+
+        return dictionaryTable;
+      }
+    }, {
+      key: "_removeDicComments",
+      value: function _removeDicComments(data) {
+        return data.replace(/^\t.*$/mg, "");
+      }
+    }, {
+      key: "_applyRule",
+      value: function _applyRule(word, rule) {
+        const entries = rule.entries;
+        let newWords = [];
+
+        for (const entry of entries) {
+          if (!entry.match || word.match(entry.match)) {
+            let newWord = word;
+
+            if (entry.remove) {
+              newWord = newWord.replace(entry.remove, "");
+            }
+
+            if (rule.type === "SFX") {
+              newWord = newWord + entry.add;
+            } else {
+              newWord = entry.add + newWord;
+            }
+
+            newWords.push(newWord);
+
+            if (entry.continuationClasses) {
+              entry.continuationClasses.map(key => {
+                const continuationRule = this.rules[key];
+
+                if (continuationRule) {
+                  newWords = newWords.concat(this._applyRule(newWord, continuationRule));
+                }
+              });
+            }
+          }
+        }
+
+        return newWords;
+      }
+    }, {
+      key: "parseRuleCodes",
+      value: function parseRuleCodes(textCodes) {
+        if (!textCodes || this.flags === undefined) {
+          return [];
+        } else if (!this.flags.FLAG) {
+          return textCodes.split("");
+        } else if (this.flags.FLAG === "long") {
+          const pFlags = [];
+
+          for (let i = 0; i < textCodes.length; i += 2) {
+            pFlags.push(textCodes.substr(i, 2));
+          }
+
+          return pFlags;
+        } else if (this.flags.FLAG === "num") {
+          return textCodes.split(",");
+        }
+
+        return [];
       }
     }, {
       key: "ready",

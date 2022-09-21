@@ -14,7 +14,7 @@
   "_sourceDirReadme": "{0}/readme",
   "_sourceLink": "https://github.com/Amourspirit/Typo.js",
   "_meta_generator": "Typo-js-ts",
-  "name": "typo-js-ts",
+  "name": "spoken-typo-js-ts",
   "version": "2.0.4",
   "description": "Typo.js is a JavaScript spellchecker that uses Hunspell-style dictionaries.",
   "main": "dist/commonjs/typo.js",
@@ -84,9 +84,11 @@
     "regenerator-runtime": "^0.13.7",
     "rollup": "^2.27.0",
     "tonic-example": "^0.2.0",
-    "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^4.0.2"
   },
-  "tonicExampleFilename": "tonic-example.js"
+  "tonicExampleFilename": "tonic-example.js",
+  "dependencies": {
+    "tslint": "^5.3.0"
+  }
 }
