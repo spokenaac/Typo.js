@@ -28,7 +28,7 @@
       _classCallCheck(this, Typo);
 
       this.ERR_NOT_LOAD = "Dictionary not loaded";
-      this.ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+      this.ALPHABET = "abcdefghijklmnopqrstuvwxyz-'";
       this.lDictionary = '';
       this.rules = {};
       this.dictionaryTable = {};
@@ -122,7 +122,7 @@
                 }
               }
 
-              this.compoundRules[i] = new RegExp(expressionText, "i");
+              this.compoundRules[i] = new RegExp("^(?:" + expressionText + ")$", "i");
               i++;
             }
           }
