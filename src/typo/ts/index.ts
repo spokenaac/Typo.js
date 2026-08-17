@@ -75,7 +75,7 @@ interface IDictionaryTable {
 export class Typo {
 	private readyPromise: Promise<any>;
 	private ERR_NOT_LOAD = "Dictionary not loaded";
-	private ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+	private ALPHABET = "abcdefghijklmnopqrstuvwxyz-'";
 	private options: IOptions;
 
 	private lDictionary: string = '';
@@ -212,7 +212,7 @@ export class Typo {
 								expressionText += character;
 							}
 						}
-						this.compoundRules[i] = new RegExp(expressionText, "i");
+						this.compoundRules[i] = new RegExp("^(?:" + expressionText + ")$", "i");
 						i++;
 					}
 				}
