@@ -1,19 +1,8 @@
-<p align="center">
-<a href="https://www.npmjs.com/package/typo-js-ts">📖 🆃🆈🅿🅾.🅹🆂 📖</h1></a>
-</ br>
-</p>
-<p align="center">
-<a href="https://snyk.io/test/github/Amourspirit/Typo.js?targetFile=package.json">
-<img src="https://snyk.io/test/github/Amourspirit/Typo.js/badge.svg?targetFile=package.json" /></a>
-<img src="https://img.shields.io/github/package-json/v/Amourspirit/Typo.js.svg" />
-<a href="https://github.com/badges/stability-badges"> <img src="https://badges.github.io/stability-badges/dist/stable.svg" /></a>
-</p>
+# Typo.js
 
-# Type.js
+This is a fork of typo-js-ts maintained for use by Spoken.
 
-**Typo.js** is a JavaScript spellchecker that uses Hunspell-style dictionaries.
-
-**Typo.js** is written in *Typescript*.
+Typo-js-ts is a TypeScript rewrite of the classic JavaScript spellchecker Typo.js. Its source is maintained in the [Amourspirit/Typo.js](https://github.com/Amourspirit/Typo.js) repository and published to npm as typo-js-ts.
 
 ## Node install
 
