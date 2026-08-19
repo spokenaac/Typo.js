@@ -731,37 +731,16 @@ export class Typo {
 
 			const rv = [];
 
-			let capitalizationScheme = "lowercase";
-
-			if (wrd.toUpperCase() === wrd) {
-				capitalizationScheme = "uppercase";
-			}
-			else if (wrd.substr(0, 1).toUpperCase() + wrd.substr(1).toLowerCase() === wrd) {
-				capitalizationScheme = "capitalized";
-			}
-
 			let workingLimit = limit;
 
 			for (i = 0; i < Math.min(workingLimit, sortedCorrections.length); i++) {
-				let sortString = sortedCorrections[i][0].toString();
-				let update = false;
-				if ("uppercase" === capitalizationScheme) {
-					sortString = sortString.toUpperCase();
-					update = true;
-				}
-				else if ("capitalized" === capitalizationScheme) {
-					sortString = sortString.substr(0, 1).toUpperCase() + sortString.substr(1);
-					update = true;
-				}
+				const sortString = sortedCorrections[i][0].toString();
 				if (!this.hasFlag(sortString, "NOSUGGEST") && rv.indexOf(sortString) === -1) {
 					rv.push(sortString);
 				}
 				else {
 					// If one of the corrections is not eligible as a suggestion , make sure we still return the right number of suggestions.
 					workingLimit++;
-				}
-				if (update) {
-					sortedCorrections[i][0] = sortString;
 				}
 			}
 			return rv;
