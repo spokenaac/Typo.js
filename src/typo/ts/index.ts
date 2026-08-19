@@ -75,7 +75,7 @@ interface IDictionaryTable {
 export class Typo {
 	private readyPromise: Promise<any>;
 	private ERR_NOT_LOAD = "Dictionary not loaded";
-	private ALPHABET = "abcdefghijklmnopqrstuvwxyz-'";
+	private ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789-'";
 	private options: IOptions;
 
 	private lDictionary: string = '';
@@ -87,6 +87,7 @@ export class Typo {
 
 	// dictionaryTable seems to be an object full or arrays for elements in the dom.
 	private dictionaryTable: IDictionaryTable = {};
+	private caseInsensitiveDictionary: Set<string> = new Set();
 	private compoundRules: (RegExp | string)[] = [];
 	private compoundRuleCodes: compoundRuleCodesType = {};
 
@@ -186,6 +187,9 @@ export class Typo {
 				}
 
 				this.dictionaryTable = this._parseDIC(wData);
+				this.caseInsensitiveDictionary = new Set(
+					Object.keys(this.dictionaryTable).map(word => word.toLowerCase())
+				);
 
 				// Get rid of any codes from the compound rule codes that are never used
 				// (or that were special regex characters).  Not especially necessary...
@@ -540,11 +544,18 @@ export class Typo {
 			return [];
 		}
 
+		if (this.caseInsensitiveDictionary.has(word.toLowerCase())) {
+			return [word.toLowerCase()];
+		}
+
+		const isKnown = (candidate: string): boolean =>
+			this.check(candidate) || this.caseInsensitiveDictionary.has(candidate.toLowerCase());
+
 		// Check the replacement table.
 		for (const replacementEntry of this.replacementTable) {
 			if (word.indexOf(replacementEntry[0]) !== -1) {
 				const correctedWord = word.replace(replacementEntry[0], replacementEntry[1]);
-				if (this.check(correctedWord)) {
+				if (isKnown(correctedWord)) {
 					return [correctedWord];
 				}
 			}
@@ -604,7 +615,7 @@ export class Typo {
 						if (strSub[1]) {
 							strEdit = strSub[0] + strSub[1].substring(1);
 
-							if (!knownOnly || this.check(strEdit)) {
+							if (!knownOnly || isKnown(strEdit)) {
 								if (!(strEdit in rv)) {
 									rv[strEdit] = 1;
 								}
@@ -618,7 +629,7 @@ export class Typo {
 						if (strSub[1].length > 1 && strSub[1][1] !== strSub[1][0]) {
 							strEdit = strSub[0] + strSub[1][1] + strSub[1][0] + strSub[1].substring(2);
 
-							if (!knownOnly || this.check(strEdit)) {
+							if (!knownOnly || isKnown(strEdit)) {
 								if (!(strEdit in rv)) {
 									rv[strEdit] = 1;
 								}
@@ -634,7 +645,7 @@ export class Typo {
 								if (this.ALPHABET[j] !== strSub[1].substring(0, 1)) {
 									strEdit = strSub[0] + this.ALPHABET[j] + strSub[1].substring(1);
 
-									if (!knownOnly || this.check(strEdit)) {
+									if (!knownOnly || isKnown(strEdit)) {
 										if (!(strEdit in rv)) {
 											rv[strEdit] = 1;
 										}
@@ -650,7 +661,7 @@ export class Typo {
 							for (j = 0, numJlen = this.ALPHABET.length; j < numJlen; j++) {
 								strEdit = strSub[0] + this.ALPHABET[j] + strSub[1];
 
-								if (!knownOnly || this.check(strEdit)) {
+								if (!knownOnly || isKnown(strEdit)) {
 									if (!(strEdit in rv)) {
 										rv[strEdit] = 1;
 									}
@@ -667,6 +678,8 @@ export class Typo {
 		}
 
 		const correct = (wrd: string) => {
+			wrd = wrd.toLowerCase();
+
 			// Get the edit-distance-1 and edit-distance-2 forms of this word.
 			const ed1 = edits1(wrd);
 			const ed2 = edits1(ed1, true);
@@ -675,7 +688,7 @@ export class Typo {
 			const weightedCorrections = ed2;
 
 			for (const ed1word in ed1) {
-				if (!this.check(ed1word)) {
+				if (!isKnown(ed1word)) {
 					continue;
 				}
 
@@ -718,37 +731,16 @@ export class Typo {
 
 			const rv = [];
 
-			let capitalizationScheme = "lowercase";
-
-			if (wrd.toUpperCase() === wrd) {
-				capitalizationScheme = "uppercase";
-			}
-			else if (wrd.substr(0, 1).toUpperCase() + wrd.substr(1).toLowerCase() === wrd) {
-				capitalizationScheme = "capitalized";
-			}
-
 			let workingLimit = limit;
 
 			for (i = 0; i < Math.min(workingLimit, sortedCorrections.length); i++) {
-				let sortString = sortedCorrections[i][0].toString();
-				let update = false;
-				if ("uppercase" === capitalizationScheme) {
-					sortString = sortString.toUpperCase();
-					update = true;
-				}
-				else if ("capitalized" === capitalizationScheme) {
-					sortString = sortString.substr(0, 1).toUpperCase() + sortString.substr(1);
-					update = true;
-				}
+				const sortString = sortedCorrections[i][0].toString();
 				if (!this.hasFlag(sortString, "NOSUGGEST") && rv.indexOf(sortString) === -1) {
 					rv.push(sortString);
 				}
 				else {
 					// If one of the corrections is not eligible as a suggestion , make sure we still return the right number of suggestions.
 					workingLimit++;
-				}
-				if (update) {
-					sortedCorrections[i][0] = sortString;
 				}
 			}
 			return rv;
